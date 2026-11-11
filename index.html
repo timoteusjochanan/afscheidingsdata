@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Afscheiding in Groningen</title>
+<!-- Vierde opmaak: de kaartvariant (template_volscherm.html) in de stijl van LaTeX.css
+     (https://github.com/vincentdoerig/latex-css). Geen Tabler/Bootstrap: de lagenkeuze is een
+     <details>, de verantwoording een artikelpagina met kanttekeningen. Het thema volgt het
+     systeem (prefers-color-scheme, klasse latex-dark-auto op body). -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/latex.css@1.14.0/style.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/latex.css@1.14.0/lang/nl.css">
+<style>
+/* Kaartopmaak (wordt bij het bouwen ingevoegd op __KAART_CSS__).
+   Algemene kleuren komen uit het framework: Bootstrap (--bs-*) of Tabler (--tblr-*). */
+:root{
+  --ink:var(--bs-body-color,var(--tblr-body-color)); --muted:var(--bs-secondary-color,var(--tblr-secondary-color));
+  --line:var(--bs-border-color,var(--tblr-border-color)); --panel:var(--bs-body-bg,var(--tblr-bg-surface,var(--tblr-body-bg)));
+  --land:#d9ecd2; --muni:#9fbf94; --ctx:#efede6; --prov-line:#7fa874;
+  --af:#c2410c; --af-new:#f59e0b; --af-gone:#8a8478; --hv:#5b6b7a; --accent:#7c3aed;
+  --track:#e3ddcf;
+  --w1:#0e7490; --w2:#3ba3b9; --w3:#a9cdd5; --w4:#d8d2c4; --vor:#0e7490;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-bs-theme="light"]){
+    --land:#2c3d31; --muni:#4d6a53; --ctx:#26252b; --prov-line:#5f8a68;
+    --af:#fb7a3c; --af-new:#fcd34d; --af-gone:#6f6a62; --hv:#93a4b5; --accent:#a78bfa;
+    --track:#34323a;
+    --w1:#22d3ee; --w2:#3b9fb3; --w3:#2f6673; --w4:#4a4752; --vor:#22d3ee;
+  }
+}
+:root[data-bs-theme="dark"]{
+  --land:#2c3d31; --muni:#4d6a53; --ctx:#26252b; --prov-line:#5f8a68;
+  --af:#fb7a3c; --af-new:#fcd34d; --af-gone:#6f6a62; --hv:#93a4b5; --accent:#a78bfa;
+  --track:#34323a;
+  --w1:#22d3ee; --w2:#3b9fb3; --w3:#2f6673; --w4:#4a4752; --vor:#22d3ee;
+}
+html,body{overflow-x:hidden}
+.mapwrap{display:flex;align-items:stretch}
+.mapbox{position:relative;flex:1 1 auto;min-width:0}
+svg#map{display:block;width:100%;height:auto}
+/* Tijdlijnbediening als zwevend paneel onderin de kaart */
+.maptl{position:absolute;left:12px;right:12px;bottom:12px;padding:8px 10px;border-radius:8px;
+  background:transparent;border:0;box-shadow:none}
+/* Ledenbalk: ledental (1851) van de bestaande gemeenten */
+.thermo{flex:0 0 86px;display:flex;flex-direction:column;align-items:center;padding:14px 10px 12px 0;font-variant-numeric:tabular-nums}
+.th-head{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:3px}
+.th-val{font-size:1.15rem;font-weight:600;color:var(--af);margin:2px 0 8px;white-space:nowrap}
+.th-tube{flex:1 1 auto;display:flex;width:100%;min-height:120px}
+.th-ticks{position:relative;flex:1 1 auto}
+.th-ticks span{position:absolute;right:2px;transform:translateY(50%);font-size:.7rem;color:var(--muted);line-height:1;white-space:nowrap}
+.th-ticks span::after{content:"";display:inline-block;width:5px;border-top:1px solid var(--muted);margin-left:3px;vertical-align:middle}
+.th-col{flex:0 0 28px;display:flex;flex-direction:column;align-items:center}
+.th-glass{position:relative;flex:1 1 auto;width:14px;border:1px solid var(--line);border-radius:4px;background:var(--track);overflow:hidden}
+.th-fill{position:absolute;left:0;right:0;bottom:0;height:0;background:var(--af);transition:height .12s linear}
+
+.datebadge{position:absolute;left:16px;top:10px;pointer-events:none}
+.datebadge .y{font-size:54px;line-height:1;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.datebadge .m{font-size:15px;color:var(--muted)}
+.events{font-size:.95rem;max-height:300px;overflow:auto}
+.events div{padding:4px 0;border-bottom:1px dashed var(--line);display:flex;justify-content:space-between;gap:8px}
+.events div:last-child{border-bottom:0}
+.events .d{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;font-size:.85rem}
+.ktag{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px;flex-shrink:0}
+.kempty{color:var(--muted);font-style:italic;margin:0}
+.toggles .form-check{margin-bottom:.35rem}
+.toggles .form-check-label{cursor:pointer}
+.kleg{font-size:.85rem;color:var(--muted);margin:2px 0 8px 2.5em}
+.kleg .ramp{display:flex;height:9px;border-radius:2px;overflow:hidden;margin:4px 0 2px}
+.kleg .ramp span{flex:1}
+.kleg .ends{display:flex;justify-content:space-between}
+.wleg{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;align-items:center;font-size:.85rem;color:var(--muted);margin:2px 0 8px 2.5em}
+.wleg[hidden]{display:none}
+.tlrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tlslide{position:relative;flex:1 1 200px;min-width:0;--thumb:1rem}
+.tlslide .form-range{display:block;width:100%;accent-color:var(--af)}
+/* jaartallen: positie volgt het midden van de schuifknop */
+.tlticks{position:absolute;left:0;right:0;top:100%;height:0;pointer-events:none}
+.tlticks span{position:absolute;left:calc(var(--thumb)/2 + var(--p)*(100% - var(--thumb)));transform:translateX(-50%);
+  top:-3px;padding-top:5px;font-size:.62rem;line-height:1;color:var(--muted);opacity:.85;font-variant-numeric:tabular-nums}
+.tlticks span::before{content:"";position:absolute;left:50%;top:0;height:4px;border-left:1px solid currentColor;opacity:.6}
+.tlrow .btn,.tlrow .btn-group,.tlrow select{flex-shrink:0}
+#play{min-width:110px}
+.tlnote{flex:1 0 100%;font-size:.68rem;line-height:1.25;color:var(--muted);margin-top:10px}
+.note{font-size:.85rem;color:var(--muted);margin:8px 0 0}
+.tip{position:fixed;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:.85rem;box-shadow:0 4px 18px rgba(0,0,0,.15);display:none;max-width:260px;z-index:2000}
+.tip b{font-size:.95rem}
+.muni{fill:var(--land);stroke:var(--muni);stroke-width:.6;vector-effect:non-scaling-stroke}
+.muni.changed{stroke:var(--accent);stroke-width:2}
+.ctx{fill:var(--ctx);stroke:none}
+.hist{pointer-events:none}
+@media (prefers-color-scheme: dark){:root:not([data-bs-theme="light"]) .hist{filter:brightness(.72) saturate(.85)}}
+[data-bs-theme="dark"] .hist{filter:brightness(.72) saturate(.85)}
+.prov{fill:var(--land);stroke:var(--prov-line);stroke-width:1.2;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.hv{fill:var(--hv);opacity:.55}
+.af{stroke:var(--panel);stroke-width:1}
+.af.gone{fill:none;stroke:var(--af-gone);stroke-width:1.2;stroke-dasharray:2 2}
+.walking .muni{stroke-opacity:.35}
+.vor{fill:none;stroke:var(--vor);stroke-width:1.1;stroke-opacity:.55;stroke-dasharray:4 3;vector-effect:non-scaling-stroke}
+.link{stroke:var(--af-gone);stroke-width:1.4;stroke-dasharray:1 3;stroke-linecap:round}
+.ring{fill:none;stroke:var(--af-new);stroke-width:2}
+.mlabel{font-size:11px;fill:var(--muted);pointer-events:none;paint-order:stroke;stroke:var(--land);stroke-width:3px}
+@media (max-width:575.98px){.datebadge .y{font-size:36px}
+  .maptl{position:static;margin:8px 0 0 12px;box-shadow:none;backdrop-filter:none;background:none;border:0;padding:0}
+  .mapbox{display:flex;flex-direction:column}
+  .thermo{flex-basis:64px;padding-right:6px}.th-val{font-size:.95rem}}
+/* Weergaven: tijdlijn of volkstelling (body.mode-cen) */
+body.mode-cen .only-tijd{display:none!important}
+body:not(.mode-cen) .only-cen{display:none!important}
+#cenlist{font-size:.9rem;max-height:420px;overflow:auto}
+#cenlist div{display:grid;grid-template-columns:2em minmax(0,1fr) 30% 3.6em;align-items:center;gap:6px;padding:3px 0;border-bottom:1px dashed var(--line)}
+#cenlist div:last-child{border-bottom:0}
+#cenlist .cn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#cenlist .cbar{height:8px;background:var(--track);border-radius:4px;overflow:hidden}
+#cenlist .cbar span{display:block;height:100%}
+#cenlist .d{color:var(--muted);font-variant-numeric:tabular-nums;font-size:.85rem;text-align:right}
+/* Verantwoording: inklapbare kaart, tekst in schrijfmachineletter */
+.verant .card-header{width:100%;background:none;border:0;text-align:left;cursor:pointer;color:inherit}
+.verant .card-header:not(.collapsed){border-bottom:var(--tblr-border-width) solid var(--tblr-border-color)}
+.verant .vchev{transition:transform .2s;color:var(--tblr-secondary)}
+.verant .card-header:not(.collapsed) .vchev{transform:rotate(180deg)}
+.typewriter{font-family:"Courier Prime","Courier New",Courier,monospace;font-size:.85rem;line-height:1.5}
+.typewriter p{margin-bottom:.75rem}
+
+/* kop: op telefoon de naam onder de titel, thema-knop op dezelfde regel */
+.navbar .container-xl{flex-wrap:nowrap}
+.kbrand{min-width:0;white-space:normal}
+.kbyline{margin-left:.25rem}
+@media (max-width:575.98px){
+  .kbyline{display:block;margin-left:0;font-size:.8rem;font-weight:400;line-height:1.2}
+  .kdash{display:none}
+  .kbrand-t{line-height:1.2;font-size:1rem}}
+
+/* LaTeX-kleuren (papier, inkt, grijze kaart); overschrijven de framework-variabelen uit kaart.css */
+:root{
+  --paper:hsl(210,20%,98%); --ink:hsl(0,5%,10%); --muted:#5b5b5b; --line:#c9cbcd; --panel:hsl(210,20%,98%);
+  --rule:#1b1818; --link:hsl(0,100%,33%);
+  --land:#e9e9e4; --muni:#b9bab2; --ctx:#f0f2f3; --prov-line:#6d6e68; --track:#e1e3e5;
+  --c-reach:#1f4e79;
+  --vs-nav:68px;
+}
+@media (prefers-color-scheme: dark){
+  html:root:not([data-bs-theme="light"]){ /* specifieker dan de donkere regel in kaart.css */
+    --paper:hsl(0,0%,16%); --ink:hsl(0,0%,86%); --muted:#a3a3a3; --line:#4b4b4b; --panel:hsl(0,0%,18%);
+    --rule:#dbdbdb; --link:hsl(196,80%,77%);
+    --land:#353632; --muni:#5c5e57; --ctx:#2d2d2d; --prov-line:#8d8f88; --track:#3a3a3a;
+    --c-reach:#8fc3ec;
+  }
+}
+/* latex.css zet de body als artikel van 80ch; hier vult de kaart het venster, de tekst eronder krijgt de bladspiegel terug */
+body{max-width:none;margin:0;padding:0;min-height:0;line-height:1.45;hyphens:manual;-webkit-hyphens:manual;
+  background:var(--paper);color:var(--ink)}
+.page{max-width:80ch;margin:0 auto;padding:0 1.25rem;line-height:1.8;hyphens:auto;-webkit-hyphens:auto}
+.sc{font-variant-caps:small-caps;letter-spacing:.02em}
+button,select,input{font-family:inherit;color:inherit}
+#map{border-radius:0}
+
+/* Kop: titel met auteur in kleinkapitaal, weergaven als \section-achtige links */
+.khead{position:sticky;top:0;z-index:30;height:var(--vs-nav);display:flex;align-items:center;gap:24px;
+  padding:0 28px;background:var(--paper);border-bottom:var(--border-width-thin) solid var(--rule)}
+.khead h1,.khead h1:first-child{margin:0;font-size:1.7rem;line-height:1.1;font-weight:400;text-align:left}
+.khead .by{font-variant-caps:small-caps;letter-spacing:.03em;color:var(--muted);font-size:1.05rem;margin-left:.8rem;white-space:nowrap}
+.kmodes{margin-left:auto;display:flex;gap:22px;font-size:1.05rem}
+.kmodes a,.kmodes a:visited{color:var(--muted);text-decoration:none}
+.kmodes a .n{margin-right:.4em}
+.kmodes a.active{color:var(--ink);font-weight:700}
+.kmodes a:hover{color:var(--link)}
+
+/* Kaartscherm */
+.stage{position:relative;height:calc(100vh - var(--vs-nav));height:calc(100dvh - var(--vs-nav));
+  min-height:520px;overflow:hidden;background:var(--paper)}
+.mapfield{position:absolute;inset:0;
+  -webkit-mask-image:radial-gradient(ellipse 72% 85% at 50% 45%,#000 55%,transparent 100%);
+          mask-image:radial-gradient(ellipse 72% 85% at 50% 45%,#000 55%,transparent 100%)}
+svg#map{position:absolute;top:14px;left:250px;width:calc(100% - 250px - 120px);height:calc(100% - 110px);max-width:none;overflow:visible}
+body.mode-cen svg#map{height:calc(100% - 28px);width:calc(100% - 250px - 40px)}
+.af{stroke:var(--paper)}
+.mlabel{stroke:var(--land);font-style:italic;font-size:12px}
+.datebadge{position:absolute;left:28px;top:14px;z-index:4}
+.datebadge .y{font-size:60px;font-weight:400;letter-spacing:0;line-height:1}
+.datebadge .m{font-size:1.15rem;font-variant-caps:small-caps;letter-spacing:.03em;color:var(--muted)}
+
+/* Lagenkeuze: uitklapbaar kader (\fbox) rechtsboven */
+.vs-layersbtn{position:absolute;top:16px;right:132px;z-index:6;font-size:1rem}
+body.mode-cen .vs-layersbtn{right:28px}
+.vs-layersbtn summary{cursor:pointer;font-variant-caps:small-caps;letter-spacing:.03em;color:var(--muted);list-style:none;text-align:right}
+.vs-layersbtn summary::-webkit-details-marker{display:none}
+.vs-layersbtn summary::after{content:" ▾";font-size:.8em}
+.vs-layersbtn[open] summary{color:var(--ink)}
+.vs-layers{position:absolute;right:0;top:calc(100% + 6px);width:310px;padding:12px 14px;background:var(--paper);
+  border:var(--border-width-thin) solid var(--rule);line-height:1.35}
+.vs-layers label{display:flex;align-items:baseline;gap:8px;margin:0 0 .5rem;cursor:pointer}
+.vs-layers input{accent-color:var(--af);flex:0 0 auto;transform:translateY(1px)}
+.vs-layers .histop{display:flex;align-items:center;gap:8px;margin:.35rem 0 0 1.6em;font-size:.9rem;font-style:italic;color:var(--muted)}
+.vs-layers .histop input[type=range]{flex:1;accent-color:var(--muted)}
+.vs-layers .histop[hidden]{display:none}
+.vs-layers .histfull{margin:.2rem 0 .7rem 1.6em;cursor:pointer}
+.vs-layers .histfull input{accent-color:var(--muted)}
+.vs-layers .wleg{margin:-2px 0 .6rem 1.6em;font-size:.9rem}
+
+/* Ledenbalk */
+.vs-thermo{position:absolute;right:24px;top:16px;width:96px;height:min(440px,calc(100% - 140px));z-index:4}
+.vs-thermo .thermo{height:100%;padding:0}
+.th-head{text-transform:none;letter-spacing:.03em;font-variant-caps:small-caps;font-size:1rem}
+.th-val{font-weight:400;font-size:1.3rem}
+.th-glass{border-radius:0;background:transparent;width:10px}
+.th-ticks span{font-size:.8rem}
+
+/* Tijdlijn onderaan */
+.vs-tl{position:absolute;left:28px;right:28px;bottom:14px;z-index:5}
+.tbtn{background:none;border:var(--border-width-thin) solid var(--rule);border-radius:0;padding:1px 10px;font-size:1rem;line-height:1.5;cursor:pointer}
+.tbtn:hover{color:var(--link);border-color:var(--link)}
+#play{min-width:96px;text-align:left}
+#play .g{display:inline-block;width:1em}
+.tsel{background:var(--paper);border:var(--border-width-thin) solid var(--rule);border-radius:0;padding:2px 6px;font-size:.95rem}
+.tlslide .form-range{accent-color:var(--af);height:18px}
+.tlticks span{font-size:.8rem}
+.vs-tl .tlnote{margin-top:16px;font-size:.85rem;font-style:italic}
+
+/* Cijfers links op de kaart: rustige kolom met gekleurde kantlijnen (zoals de volschermvariant) */
+.vs-ov{position:absolute;left:28px;top:112px;bottom:108px;width:210px;z-index:4;display:flex;flex-direction:column;gap:14px;
+  opacity:.82;transition:opacity .2s}
+body.mode-cen .vs-ov{bottom:24px}
+.vs-ov:hover{opacity:1}
+.vs-ov .grp{display:flex;flex-direction:column;gap:12px;flex:0 0 auto}
+.ost{border-left:2px solid var(--c,var(--line));padding:0 0 0 10px}
+.ost.gone{border-left-style:dashed}
+.ost .l{font-variant-caps:small-caps;letter-spacing:.03em;font-size:.86rem;line-height:1.2;color:var(--muted)}
+.ost .v{font-size:1.35rem;line-height:1.2}
+.ost .v small{font-size:.8rem;color:var(--muted);margin-left:3px}
+.ost .s{font-size:.76rem;font-style:italic;color:var(--muted);line-height:1.3}
+.ost .bar{height:1px;background:var(--line);margin:4px 0 3px;max-width:120px}
+.ost .bar>div{height:2px;margin-top:-.5px;background:var(--c-reach)}
+.vs-ov .v,.vs-ov .l,.vs-ov .s,.datebadge{text-shadow:0 0 6px var(--paper),0 0 2px var(--paper)}
+.olist{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;padding-top:8px;
+  border-top:var(--border-width-thin) solid var(--line)}
+.olist>.l{font-variant-caps:small-caps;letter-spacing:.03em;font-size:.86rem;color:var(--muted);margin-bottom:4px}
+.olist .events,.olist #cenlist{flex:1 1 auto;min-height:0;overflow:auto;max-height:none;font-size:.84rem;scrollbar-width:thin;
+  -webkit-mask-image:linear-gradient(#000 85%,transparent);mask-image:linear-gradient(#000 85%,transparent);padding-bottom:12px}
+.olist .events div,.olist #cenlist div{border-bottom:0!important;padding:1px 0}
+.olist .events .d,.olist #cenlist .d{font-size:.78rem;font-style:italic}
+.olist #cenlist div{grid-template-columns:1.5em minmax(0,1fr) 18% 3em;gap:4px;font-size:.82rem}
+.olist #cenlist .cbar{height:4px;border-radius:0;background:var(--track)}
+.olist .kleg{margin:0 0 6px;font-size:.76rem}
+.olist .kleg .ramp{height:5px;border-radius:0}
+.olist .note{font-size:.74rem;line-height:1.3;font-style:italic;margin:4px 0 6px}
+.olist .kempty{font-size:.84rem}
+.tip{border-radius:0;box-shadow:none;font-size:.95rem;line-height:1.35;background:var(--paper);border:var(--border-width-thin) solid var(--rule)}
+
+/* Verantwoording: artikelbladspiegel met kanttekeningen */
+.vs-below{padding:1rem 1.25rem 4rem}
+.vs-below h2{margin:2rem 0 0}
+.vs-below h2 .n{margin-right:.9em}
+.verant>summary{list-style:none;cursor:pointer;border-bottom:var(--border-width-thin) solid var(--line);padding-bottom:.3rem}
+.verant>summary::-webkit-details-marker{display:none}
+.verant>summary h2{display:flex;align-items:baseline}
+.verant>summary h2::after{content:"▸";margin-left:auto;font-size:.8em;color:var(--muted);transition:transform .2s}
+.verant[open]>summary h2::after{transform:rotate(90deg)}
+.verant>summary:hover h2{color:var(--link)}
+.verant[open]>summary{border-bottom-color:transparent}
+
+@media (max-width:767.98px){
+  :root{--vs-nav:auto}
+  .khead{position:static;height:auto;flex-wrap:wrap;gap:6px 16px;padding:12px 16px}
+  .khead h1,.khead h1:first-child{font-size:1.4rem}
+  .khead .by{display:block;margin:2px 0 0;font-size:.95rem}
+  .kmodes{margin-left:0;flex:1 0 100%;font-size:1rem}
+  .stage{height:auto;min-height:0;overflow:visible}
+  .mapzone{position:relative;height:380px;overflow:hidden}
+  .mapfield{-webkit-mask-image:none;mask-image:none}
+  svg#map,body.mode-cen svg#map{top:56px;left:8px;width:calc(100% - 96px);height:calc(100% - 64px)}
+  body.mode-cen svg#map{width:calc(100% - 16px)}
+  .datebadge{left:16px;top:6px}
+  .datebadge .y{font-size:40px}
+  .vs-thermo{top:8px;right:8px;width:80px;height:calc(100% - 16px)}
+  .vs-layersbtn{top:8px;right:96px}
+  body.mode-cen .vs-layersbtn{right:16px}
+  .vs-layers{width:min(300px,calc(100vw - 32px))}
+  .vs-tl{position:static;padding:4px 16px 18px}
+  .vs-ov{position:static;width:auto;padding:4px 16px 8px}
+  .vs-ov .grp{display:grid;grid-template-columns:1fr 1fr;gap:14px 12px}
+  .olist .events,.olist #cenlist{max-height:320px;-webkit-mask-image:none;mask-image:none}
+}
+</style>
+</head>
+<body class="latex-dark-auto">
+<header class="khead">
+  <h1><span id="title">De Afscheiding in Groningen</span><span class="by">Timon de Groot</span></h1>
+  <nav class="kmodes" role="tablist" aria-label="Weergave">
+    <a href="#" class="active" role="tab" aria-selected="true" data-mode="tijd"><span class="n">1</span>Tijdlijn</a>
+    <a href="#" role="tab" aria-selected="false" data-mode="cen"><span class="n">2</span>Volkstelling 1849</a>
+  </nav>
+</header>
+
+<!-- Kaartscherm -->
+<main class="stage">
+  <div class="mapzone">
+    <div class="mapfield">
+      <svg id="map" viewBox="15 30 870 715" role="img" aria-label="Kaart van de provincie Groningen"></svg>
+    </div>
+    <div class="datebadge"><div class="y" id="by">1834</div><div class="m" id="bm"></div></div>
+
+    <details class="vs-layersbtn">
+      <summary>Lagen</summary>
+      <div class="vs-layers toggles">
+        <label><input type="checkbox" id="tHist" checked><span>Kaart 1868 <span class="sc">(Van de Weijer)</span></span></label>
+        <div class="histop" id="histrow"><span>dekking</span><input type="range" id="histOp" min="0.2" max="1" step="0.05" value="0.85" aria-label="Dekking historische kaart"></div>
+        <label class="histop histfull" id="histfullrow"><input type="checkbox" id="tHistFull" checked><span>hele kaart, niet uitgesneden</span></label>
+        <label><input type="checkbox" id="tHv" checked><span><span class="ktag" style="background:var(--hv)"></span>Hervormde kerken (<span id="hvn">155</span>)</span></label>
+        <label><input type="checkbox" id="tGone" checked><span><span class="ktag" style="border:1.5px dashed var(--af-gone)"></span>Opgeheven gemeenten</span></label>
+        <label><input type="checkbox" id="tWalk"><span>Loopafstand tot afgescheiden kerk</span></label>
+        <div class="wleg" id="walkleg" hidden>
+          <span class="ktag" style="background:var(--w1)"></span><span>≤ 30 min</span>
+          <span class="ktag" style="background:var(--w2)"></span><span>30–60 min</span>
+          <span class="ktag" style="background:var(--w3)"></span><span>60–90 min</span>
+          <span class="ktag" style="background:var(--w4)"></span><span>&gt; 90 min</span>
+          <span style="width:14px;border-top:1.5px dashed var(--vor)"></span><span>grens naaste gemeente (Voronoi)</span>
+          <span></span><span>Hemelsbreed, 5 km/u. Echte routes waren langer.</span>
+        </div>
+        <label style="margin-bottom:0"><input type="checkbox" id="tLab"><span>Gemeentenamen</span></label>
+
+      </div>
+    </details>
+
+    <div class="vs-thermo only-tijd">
+      <div class="thermo" id="thermo" role="meter" aria-label="Ledental van de bestaande afgescheiden gemeenten" aria-valuemin="0">
+        <div class="th-head"><span>leden*</span></div>
+        <div class="th-val num" id="thv">0</div>
+        <div class="th-tube"><div class="th-ticks num" id="tht"></div><div class="th-col"><div class="th-glass"><div class="th-fill" id="thf"></div></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="vs-tl only-tijd">
+    <div class="tlrow">
+      <button class="tbtn" id="play" data-pause='<span class="g">‖</span>Pauze'><span class="g">▸</span>Afspelen</button>
+      <span>
+        <button class="tbtn" id="prev" title="Vorige maand" aria-label="Vorige maand">‹</button>
+        <button class="tbtn" id="next" title="Volgende maand" aria-label="Volgende maand">›</button>
+      </span>
+      <div class="tlslide"><input type="range" class="form-range" id="slider" min="0" step="1" aria-label="Datum"><div class="tlticks" id="tlticks" aria-hidden="true"></div></div>
+      <select class="tsel" id="speed" aria-label="Snelheid"><option value="160">langzaam</option><option value="70" selected>normaal</option><option value="25">snel</option></select>
+      <div class="tlnote" id="thn"></div>
+    </div>
+  </div>
+  <!-- Cijfers: kleine tabellen links op de kaart -->
+  <aside class="vs-ov only-tijd" aria-label="Kerncijfers">
+    <div class="grp">
+      <div class="ost" style="--c:var(--af)"><div class="l">Afgescheiden gemeenten</div><div class="v" id="count">0</div><div class="s" id="zielnote">&nbsp;</div></div>
+      <div class="ost gone" style="--c:var(--af-gone)"><div class="l">Opgeheven</div><div class="v" id="gonecount">0</div></div>
+      <div class="ost" style="--c:var(--c-reach)"><div class="l">Hervormd dorp binnen een uur lopen</div><div class="v" id="reach">0</div>
+        <div class="bar"><div id="reachbar" style="width:0%"></div></div><div class="s">≤ 5 km van een afgescheiden gemeente</div></div>
+      <div class="ost" style="--c:var(--muted)"><div class="l">Mediane afstand</div><div class="v" id="reachmed">–</div><div class="s">naar naaste afgescheiden gemeente, hemelsbreed</div></div>
+    </div>
+    <div class="olist"><div class="l">Gebeurtenissen in <span id="evy" class="num"></span></div><div class="events" id="events"></div></div>
+  </aside>
+  <aside class="vs-ov only-cen" aria-label="Kerncijfers volkstelling">
+    <div class="grp">
+      <div class="ost" style="--c:var(--line)"><div class="l">Inwoners 1849</div><div class="v" id="cInw">–</div><div class="s" id="cGem">&nbsp;</div></div>
+      <div class="ost" style="--c:var(--af)"><div class="l">Afgescheidenen</div><div class="v" id="cAf">–</div><div class="s" id="cAfmv">&nbsp;</div></div>
+      <div class="ost" style="--c:var(--prov-line)"><div class="l">Aandeel provincie</div><div class="v" id="cPct">–</div></div>
+      <div class="ost" style="--c:var(--link)"><div class="l">Hoogste aandeel</div><div class="v" id="cMax">–</div><div class="s" id="cMaxn">&nbsp;</div></div>
+    </div>
+    <div class="olist"><div class="l">Gemeenten naar % afgescheiden</div>
+      <div class="kleg"><div class="ramp" id="ramp"></div><div class="ends"><span>0%</span><span id="rampmax"></span></div></div>
+      <div id="cenlist"></div>
+      <p class="note">Grenzen 1849; afgescheiden gemeenten: stand december. Alleen gemeenten met afgescheidenen.</p></div>
+  </aside>
+</main>
+
+<!-- Onder de kaart: verantwoording -->
+<article class="page vs-below">
+  <details class="verant">
+    <summary><h2><span class="n">3</span>Verantwoording</h2></summary>
+    <p><span class="sc">Bronnen.</span> Afgescheiden gemeenten (instituering, opheffing, ledental 1851) en volkstelling 1849: eigen dataset uit Wesseling, <em>De Afscheiding van 1834 in Groningerland</em>, deel 1–3. Hervormde kerken per classis: idem.<label for="sn-nlgis" class="sidenote-toggle sidenote-number"></label><input type="checkbox" id="sn-nlgis" class="sidenote-toggle"><span class="sidenote">Gemeentegrenzen per jaar: <a href="https://nlgis.nl">NLGIS</a> (Boonstra-kaarten), via de NLGIS-API.</span></p>
+    <p>Kerken zijn geplaatst op het centrum van de plaats, niet op het kerkgebouw. Gemeenten zonder opheffingsdatum bestonden nog aan het eind van de bronperiode.</p>
+    <p><span class="sc">Historische kaart.</span> De laag <em>Kaart 1868</em> is <em>Groningen</em>, steendruk van J.H. van de Weijer (1868), Universiteitsbibliotheek Groningen, Bibliotheek Backer, uklu 01-13-03, geladen via IIIF uit de <a href="https://dbc.rug.nl/digital/collection/Kaarten/id/1846">digitale collecties van de RUG</a>. De kaart dateert van na de onderzoeksperiode: spoorlijnen en kanalen kunnen jonger zijn dan 1851.<label for="sn-georef" class="sidenote-toggle sidenote-number"></label><input type="checkbox" id="sn-georef" class="sidenote-toggle"><span class="sidenote">Gegeorefereerd met één affiene transformatie, gepast op de gele provinciegrens van de scan tegen de NLGIS-grens van 1849. Langs de grens ligt de helft binnen ongeveer 200 m; aan de kust en bij de Dollard wijken de grenzen zelf af, tot enkele kilometers.</span></p>
+  </details>
+</article>
+<div class="tip" id="tip"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+const DATA = {"meta":{"jaar_van":1834,"jaar_tot":1851,"bronperiode_eind":"1852-01-01","zielen_jaar":1851,"start":[1834,1],"gebouwd":"2026-11-11"},"geoms":{"10996_1834":{"n":"Adorp","c":10996,"g":{"type":"Polygon","coordinates":[[[6.5616,53.3102],[6.5575,53.2722],[6.5507,53.2597],[6.5589,53.254],[6.5592,53.2476],[6.548,53.2478],[6.5437,53.246],[6.5317,53.2547],[6.5216,53.2534],[6.5318,53.2392],[6.524,53.2376],[6.5103,53.2477],[6.5056,53.2677],[6.5013,53.2971],[6.5184,53.294],[6.5193,53.2977],[6.5076,53.2989],[6.5077,53.3018],[6.5188,53.3015],[6.5225,53.3056],[6.5616,53.3102]]]}},"10999_1834":{"n":"Aduard","c":10999,"g":{"type":"Polygon","coordinates":[[[6.4259,53.2821],[6.4254,53.2788],[6.4325,53.2749],[6.4438,53.2783],[6.4483,53.2765],[6.4618,53.2787],[6.4647,53.2738],[6.4731,53.2743],[6.4768,53.2669],[6.4902,53.2645],[6.5056,53.2677],[6.5103,53.2477],[6.4973,53.2421],[6.482,53.2453],[6.4651,53.2038],[6.4504,53.2057],[6.4514,53.2092],[6.4474,53.2103],[6.4427,53.2072],[6.4352,53.2119],[6.427,53.2197],[6.4311,53.2244],[6.4431,53.2246],[6.4353,53.2422],[6.4265,53.2427],[6.4317,53.2472],[6.4303,53.2513],[6.4129,53.2559],[6.4056,53.2649],[6.4091,53.2677],[6.4088,53.2744],[6.422,53.2819],[6.4259,53.2821]]]}},"10886_1834":{"n":"Appingedam","c":10886,"g":{"type":"Polygon","coordinates":[[[6.8862,53.3411],[6.8838,53.3229],[6.8864,53.317],[6.8835,53.3113],[6.8889,53.3079],[6.8872,53.2932],[6.863,53.2901],[6.8584,53.2925],[6.85,53.2915],[6.8461,53.2862],[6.8295,53.2877],[6.8263,53.2933],[6.8154,53.2926],[6.8077,53.3004],[6.8129,53.3009],[6.8088,53.3062],[6.8065,53.3181],[6.8093,53.3208],[6.8331,53.3245],[6.8377,53.3269],[6.8352,53.3286],[6.8339,53.3394],[6.8732,53.3392],[6.8767,53.3429],[6.8862,53.3411]]]}},"10539_1834":{"n":"Baflo","c":10539,"g":{"type":"Polygon","coordinates":[[[6.5476,53.4247],[6.5472,53.4047],[6.5413,53.4017],[6.5359,53.4013],[6.5332,53.3961],[6.5244,53.3936],[6.5283,53.3873],[6.5254,53.3829],[6.5391,53.3754],[6.5491,53.3753],[6.5578,53.3691],[6.5558,53.3544],[6.5696,53.3534],[6.5753,53.3434],[6.5718,53.3412],[6.5694,53.3351],[6.5313,53.3417],[6.5207,53.3456],[6.4918,53.3484],[6.4923,53.3612],[6.4846,53.3621],[6.4793,53.365],[6.4699,53.3847],[6.4782,53.386],[6.4834,53.3885],[6.4846,53.394],[6.4929,53.3957],[6.5092,53.3949],[6.5149,53.4225],[6.5476,53.4247]]]}},"10425_1834":{"n":"Bedum","c":10425,"g":{"type":"Polygon","coordinates":[[[6.5969,53.3423],[6.6048,53.3365],[6.6054,53.3338],[6.5969,53.3318],[6.6043,53.3266],[6.6083,53.3263],[6.6125,53.3245],[6.6173,53.3152],[6.6226,53.3111],[6.6373,53.3103],[6.6444,53.3044],[6.6549,53.3045],[6.6266,53.2634],[6.6348,53.2564],[6.6335,53.2464],[6.5684,53.2387],[6.5494,53.245],[6.548,53.2478],[6.5592,53.2476],[6.5589,53.254],[6.5507,53.2597],[6.5575,53.2722],[6.5616,53.3102],[6.5718,53.3412],[6.5753,53.3434],[6.5822,53.3393],[6.5969,53.3423]]]}},"11043_1834":{"n":"Beerta","c":11043,"g":{"type":"Polygon","coordinates":[[[7.2072,53.184],[7.1877,53.1716],[7.1542,53.1605],[7.142,53.1511],[7.1227,53.1475],[7.1052,53.1391],[7.0823,53.1387],[7.0819,53.1409],[7.0656,53.1584],[7.0902,53.1797],[7.1453,53.1883],[7.1689,53.2125],[7.1584,53.2154],[7.1529,53.2388],[7.1994,53.2324],[7.2102,53.2327],[7.2196,53.197],[7.2072,53.184]]]}},"10340_1834":{"n":"Bellingwolde","c":10340,"g":{"type":"Polygon","coordinates":[[[7.1892,53.1497],[7.1897,53.1446],[7.1812,53.1346],[7.1873,53.1217],[7.1842,53.1192],[7.2044,53.1088],[7.202,53.0798],[7.2032,53.052],[7.2138,53.0072],[7.1972,53.0022],[7.1632,53.0051],[7.1566,53.0138],[7.1396,53.0188],[7.1324,53.0321],[7.1271,53.0339],[7.1231,53.0423],[7.1048,53.058],[7.0934,53.0853],[7.0974,53.086],[7.0942,53.0927],[7.0972,53.0946],[7.0974,53.0976],[7.1161,53.1011],[7.1135,53.1078],[7.1237,53.1097],[7.1257,53.113],[7.1169,53.1176],[7.1139,53.1433],[7.1227,53.1475],[7.142,53.1511],[7.1466,53.155],[7.1742,53.1452],[7.1767,53.1486],[7.1892,53.1497]]]}},"11294_1834":{"n":"Bierum","c":11294,"g":{"type":"Polygon","coordinates":[[[6.9008,53.3469],[6.8864,53.3469],[6.8862,53.3411],[6.8767,53.3429],[6.8732,53.3392],[6.8339,53.3394],[6.8301,53.3428],[6.83,53.3487],[6.8238,53.3555],[6.8149,53.3556],[6.8043,53.3616],[6.8035,53.3662],[6.7807,53.3927],[6.8767,53.4277],[6.8836,53.4215],[6.8839,53.4118],[6.8893,53.3948],[6.8911,53.3751],[6.8966,53.3679],[6.9008,53.3469]]]}},"10976_1834":{"n":"Delfzijl","c":10976,"g":{"type":"Polygon","coordinates":[[[6.8838,53.3229],[6.8864,53.3469],[6.9008,53.3469],[6.9556,53.3214],[6.9858,53.3152],[7.0112,53.3022],[7.0003,53.292],[6.9975,53.2811],[7.001,53.2786],[6.9889,53.2679],[6.9826,53.2694],[6.9523,53.2631],[6.9394,53.2719],[6.9343,53.2715],[6.928,53.2667],[6.9146,53.2611],[6.9086,53.2661],[6.9085,53.2748],[6.8867,53.2766],[6.8966,53.282],[6.8896,53.2881],[6.8872,53.2932],[6.8889,53.3079],[6.8835,53.3113],[6.8864,53.317],[6.8838,53.3229]]]}},"10904_1834":{"n":"Eenrum","c":10904,"g":{"type":"Polygon","coordinates":[[[6.5149,53.4225],[6.5092,53.3949],[6.4929,53.3957],[6.4846,53.394],[6.4834,53.3885],[6.4782,53.386],[6.4699,53.3847],[6.4793,53.365],[6.4846,53.3621],[6.4559,53.3488],[6.4304,53.354],[6.439,53.3576],[6.4311,53.3661],[6.4342,53.3742],[6.4222,53.3773],[6.4206,53.385],[6.4256,53.405],[6.4139,53.4131],[6.5149,53.4225]]]}},"10136_1834":{"n":"Ezinge","c":10136,"g":{"type":"Polygon","coordinates":[[[6.4503,53.3236],[6.4604,53.3231],[6.462,53.3177],[6.473,53.3167],[6.4756,53.319],[6.4841,53.3175],[6.4844,53.3123],[6.5013,53.2971],[6.5056,53.2677],[6.4902,53.2645],[6.4768,53.2669],[6.4731,53.2743],[6.4647,53.2738],[6.4618,53.2787],[6.4483,53.2765],[6.4438,53.2783],[6.4325,53.2749],[6.4254,53.2788],[6.4259,53.2821],[6.4342,53.2891],[6.4242,53.2907],[6.4236,53.2979],[6.4296,53.3037],[6.43,53.3124],[6.4393,53.3132],[6.4497,53.317],[6.4503,53.3236]]]}},"10212_1834":{"n":"Finsterwolde","c":10212,"g":{"type":"Polygon","coordinates":[[[7.1529,53.2388],[7.1584,53.2154],[7.1689,53.2125],[7.1453,53.1883],[7.0902,53.1797],[7.0656,53.1584],[7.0606,53.1612],[7.0735,53.224],[7.0891,53.2283],[7.1053,53.2403],[7.1181,53.2414],[7.1186,53.2457],[7.1451,53.242],[7.1529,53.2388]]]}},"10244_1834":{"n":"Grijpskerk","c":10244,"g":{"type":"Polygon","coordinates":[[[6.3469,53.2688],[6.3439,53.2482],[6.316,53.2458],[6.3126,53.2394],[6.3087,53.2397],[6.3035,53.2361],[6.295,53.2395],[6.2939,53.2432],[6.2839,53.2432],[6.2782,53.2457],[6.2758,53.2588],[6.2586,53.258],[6.2604,53.2519],[6.2536,53.2499],[6.2513,53.2528],[6.2447,53.2523],[6.2458,53.2477],[6.2394,53.2463],[6.2356,53.2487],[6.2325,53.2533],[6.2464,53.2636],[6.2584,53.2638],[6.2536,53.2717],[6.2573,53.2857],[6.2701,53.2866],[6.2781,53.2983],[6.2878,53.3005],[6.2895,53.3022],[6.298,53.3006],[6.3062,53.301],[6.3054,53.305],[6.3316,53.3006],[6.3232,53.2956],[6.3236,53.2857],[6.3363,53.276],[6.3397,53.2679],[6.3469,53.2688]]]}},"10426_1834":{"n":"Groningen","c":10426,"g":{"type":"Polygon","coordinates":[[[6.6005,53.2001],[6.5722,53.1991],[6.5384,53.191],[6.5342,53.1923],[6.5216,53.1907],[6.516,53.196],[6.5262,53.2003],[6.539,53.203],[6.5255,53.2255],[6.5259,53.2309],[6.5576,53.2339],[6.5898,53.2231],[6.5962,53.2098],[6.5995,53.2095],[6.6084,53.2027],[6.6005,53.2001]]]}},"11080_1834":{"n":"Grootegast","c":11080,"g":{"type":"Polygon","coordinates":[[[6.3126,53.2394],[6.3194,53.1956],[6.3159,53.1948],[6.3156,53.192],[6.2845,53.1875],[6.2878,53.1791],[6.2459,53.1701],[6.2451,53.1677],[6.2392,53.1663],[6.2316,53.1523],[6.1735,53.1299],[6.1756,53.1554],[6.1822,53.1712],[6.2009,53.1899],[6.2019,53.196],[6.2123,53.1968],[6.2253,53.2065],[6.2262,53.2107],[6.231,53.2138],[6.2277,53.2254],[6.2167,53.2302],[6.2154,53.2359],[6.2237,53.2371],[6.2277,53.2414],[6.2329,53.2427],[6.2321,53.2457],[6.2356,53.2487],[6.2394,53.2463],[6.2458,53.2477],[6.2447,53.2523],[6.2513,53.2528],[6.2536,53.2499],[6.2604,53.2519],[6.2586,53.258],[6.2758,53.2588],[6.2782,53.2457],[6.2839,53.2432],[6.2939,53.2432],[6.295,53.2395],[6.3035,53.2361],[6.3087,53.2397],[6.3126,53.2394]]]}},"11058_1834":{"n":"Haren","c":11058,"g":{"type":"Polygon","coordinates":[[[6.6005,53.2001],[6.6015,53.1914],[6.6056,53.1917],[6.6398,53.1803],[6.6599,53.1763],[6.6634,53.1679],[6.6817,53.158],[6.6925,53.1478],[6.6897,53.1448],[6.6917,53.1404],[6.6916,53.1286],[6.6893,53.1254],[6.6812,53.1243],[6.6791,53.1206],[6.6808,53.1146],[6.6386,53.104],[6.6414,53.1074],[6.6297,53.1118],[6.6329,53.117],[6.6189,53.1257],[6.6167,53.1312],[6.6122,53.1324],[6.6104,53.1357],[6.6054,53.1384],[6.5905,53.1442],[6.5837,53.1596],[6.567,53.1561],[6.5589,53.1694],[6.5471,53.1777],[6.5384,53.191],[6.5722,53.1991],[6.6005,53.2001]]]}},"10410_1834":{"n":"Hoogezand","c":10410,"g":{"type":"Polygon","coordinates":[[[6.6398,53.1803],[6.6459,53.1838],[6.6407,53.1865],[6.6609,53.1962],[6.6662,53.1969],[6.6826,53.196],[6.7179,53.1681],[6.7488,53.1647],[6.7726,53.1648],[6.7739,53.1422],[6.7897,53.1408],[6.801,53.1192],[6.8058,53.1158],[6.8006,53.115],[6.8116,53.0653],[6.7741,53.0898],[6.7407,53.1155],[6.7123,53.1159],[6.7118,53.1222],[6.7196,53.1283],[6.6989,53.1433],[6.6917,53.1404],[6.6897,53.1448],[6.6925,53.1478],[6.6817,53.158],[6.6634,53.1679],[6.6599,53.1763],[6.6398,53.1803]]]}},"10953_1834":{"n":"Hoogkerk","c":10953,"g":{"type":"Polygon","coordinates":[[[6.5103,53.2477],[6.524,53.2376],[6.5259,53.2309],[6.5255,53.2255],[6.539,53.203],[6.5262,53.2003],[6.5106,53.1945],[6.4986,53.193],[6.4936,53.1961],[6.4912,53.2003],[6.4804,53.2027],[6.4681,53.1989],[6.4651,53.2038],[6.482,53.2453],[6.4973,53.2421],[6.5103,53.2477]]]}},"10372_1834":{"n":"Kantens","c":10372,"g":{"type":"Polygon","coordinates":[[[6.6961,53.3906],[6.7087,53.3802],[6.7372,53.3837],[6.7005,53.3559],[6.6938,53.3602],[6.679,53.3623],[6.6691,53.3606],[6.6625,53.3617],[6.645,53.3612],[6.6275,53.3566],[6.6265,53.3484],[6.5822,53.3393],[6.5886,53.3666],[6.5864,53.3768],[6.6072,53.384],[6.606,53.3869],[6.6196,53.3915],[6.633,53.3921],[6.6533,53.3923],[6.6559,53.3893],[6.6632,53.3892],[6.6645,53.3948],[6.6723,53.3948],[6.6776,53.3932],[6.6805,53.3878],[6.6892,53.3868],[6.6961,53.3906]]]}},"10628_1834":{"n":"Kloosterburen","c":10628,"g":{"type":"Polygon","coordinates":[[[6.4139,53.4131],[6.4256,53.405],[6.4206,53.385],[6.4222,53.3773],[6.4342,53.3742],[6.4311,53.3661],[6.439,53.3576],[6.4304,53.354],[6.4201,53.3652],[6.4107,53.3678],[6.408,53.3724],[6.3784,53.378],[6.378,53.3745],[6.3673,53.3694],[6.3605,53.368],[6.3408,53.3707],[6.3309,53.3667],[6.3216,53.3682],[6.3206,53.3759],[6.308,53.3855],[6.3081,53.3903],[6.3728,53.4123],[6.387,53.4133],[6.4065,53.4122],[6.4139,53.4131]]]}},"10604_1834":{"n":"Leek","c":10604,"g":{"type":"Polygon","coordinates":[[[6.427,53.2197],[6.4352,53.2119],[6.4427,53.2072],[6.4474,53.2103],[6.4514,53.2092],[6.4504,53.2057],[6.4651,53.2038],[6.4681,53.1989],[6.4652,53.199],[6.4637,53.1957],[6.4493,53.1901],[6.4454,53.184],[6.4105,53.1744],[6.4057,53.1627],[6.3958,53.1599],[6.3877,53.1514],[6.3634,53.1043],[6.3574,53.1028],[6.3473,53.0849],[6.3131,53.0899],[6.2962,53.0958],[6.2905,53.116],[6.3106,53.1185],[6.3107,53.126],[6.348,53.1311],[6.328,53.2001],[6.3417,53.204],[6.3596,53.2044],[6.3665,53.2087],[6.38,53.2103],[6.3825,53.2119],[6.3898,53.2115],[6.4096,53.2131],[6.4127,53.2167],[6.427,53.2197]]]}},"11050_1834":{"n":"Leens","c":11050,"g":{"type":"Polygon","coordinates":[[[6.3673,53.3694],[6.378,53.3745],[6.3784,53.378],[6.408,53.3724],[6.4107,53.3678],[6.4201,53.3652],[6.4304,53.354],[6.4559,53.3488],[6.471,53.3556],[6.4818,53.3515],[6.4838,53.3409],[6.4776,53.3383],[6.4778,53.3346],[6.4572,53.3275],[6.4563,53.3236],[6.4503,53.3236],[6.4497,53.317],[6.4393,53.3132],[6.4364,53.3187],[6.4361,53.3239],[6.4161,53.3242],[6.4133,53.3185],[6.408,53.3159],[6.3722,53.3182],[6.3661,53.3168],[6.362,53.3114],[6.3482,53.3139],[6.3528,53.3196],[6.3498,53.3261],[6.3556,53.3366],[6.3685,53.3468],[6.3656,53.3536],[6.3705,53.3618],[6.3673,53.3694]]]}},"10934_1834":{"n":"Loppersum","c":10934,"g":{"type":"Polygon","coordinates":[[[6.8093,53.3208],[6.8065,53.3181],[6.8088,53.3062],[6.8129,53.3009],[6.8077,53.3004],[6.8154,53.2926],[6.8066,53.2895],[6.8108,53.2827],[6.7935,53.2784],[6.786,53.2837],[6.7828,53.2824],[6.774,53.2939],[6.7617,53.293],[6.7476,53.3025],[6.7521,53.3065],[6.7388,53.3082],[6.72,53.3137],[6.7079,53.3251],[6.7177,53.3314],[6.7157,53.334],[6.7277,53.3368],[6.7288,53.3401],[6.7193,53.348],[6.7262,53.352],[6.7399,53.349],[6.7379,53.3413],[6.7532,53.3364],[6.7607,53.3364],[6.7783,53.3289],[6.7826,53.3287],[6.7878,53.3253],[6.7977,53.3267],[6.8093,53.3208]]]}},"11431_1834":{"n":"Marum","c":11431,"g":{"type":"Polygon","coordinates":[[[6.328,53.2001],[6.348,53.1311],[6.3107,53.126],[6.3106,53.1185],[6.2905,53.116],[6.2962,53.0958],[6.2905,53.0964],[6.2795,53.1062],[6.2698,53.1101],[6.261,53.1106],[6.2321,53.1097],[6.2054,53.112],[6.1818,53.1261],[6.1735,53.1299],[6.2316,53.1523],[6.2392,53.1663],[6.2451,53.1677],[6.2459,53.1701],[6.2878,53.1791],[6.2845,53.1875],[6.3156,53.192],[6.3159,53.1948],[6.3194,53.1956],[6.3189,53.1994],[6.328,53.2001]]]}},"10304_1834":{"n":"Meeden","c":10304,"g":{"type":"Polygon","coordinates":[[[6.9101,53.167],[6.9319,53.1614],[6.9315,53.1596],[6.942,53.1596],[6.9424,53.1563],[6.9565,53.1557],[6.9563,53.1499],[6.9502,53.1473],[6.9686,53.1074],[6.9608,53.1051],[6.9579,53.1156],[6.9012,53.1234],[6.8995,53.1587],[6.9101,53.167]]]}},"11199_1834":{"n":"Middelstum","c":11199,"g":{"type":"Polygon","coordinates":[[[6.5969,53.3423],[6.6265,53.3484],[6.6275,53.3566],[6.645,53.3612],[6.6625,53.3617],[6.6691,53.3606],[6.679,53.3623],[6.6938,53.3602],[6.7005,53.3559],[6.6833,53.345],[6.6549,53.3045],[6.6444,53.3044],[6.6373,53.3103],[6.6226,53.3111],[6.6173,53.3152],[6.6125,53.3245],[6.6083,53.3263],[6.6043,53.3266],[6.5969,53.3318],[6.6054,53.3338],[6.6048,53.3365],[6.5969,53.3423]]]}},"10356_1834":{"n":"Midwolda","c":10356,"g":{"type":"Polygon","coordinates":[[[7.0735,53.224],[7.0606,53.1612],[7.0559,53.1638],[7.0124,53.1635],[6.9986,53.1665],[6.9947,53.1628],[6.989,53.1645],[6.9888,53.1712],[6.9569,53.2169],[6.9738,53.2201],[6.9766,53.211],[6.9933,53.2184],[7.0166,53.2423],[7.0354,53.2231],[7.0735,53.224]]]}},"10550_1834":{"n":"Muntendam","c":10550,"g":{"type":"Polygon","coordinates":[[[6.8995,53.1587],[6.9012,53.1234],[6.8854,53.125],[6.8837,53.1213],[6.8744,53.1223],[6.8726,53.1196],[6.8223,53.1222],[6.8214,53.1254],[6.801,53.1192],[6.7938,53.1322],[6.8021,53.1343],[6.8012,53.1362],[6.8086,53.1384],[6.8083,53.1418],[6.8184,53.143],[6.8169,53.1486],[6.8234,53.15],[6.8242,53.1481],[6.8654,53.1494],[6.8802,53.1562],[6.8933,53.1571],[6.8932,53.16],[6.8995,53.1587]]]}},"10950_1834":{"n":"Nieuwe Pekela","c":10950,"g":{"type":"Polygon","coordinates":[[[7.0002,53.0572],[6.9539,53.0065],[6.912,53.0313],[6.9049,53.0268],[6.9026,53.0301],[6.9038,53.04],[6.92,53.0412],[6.9195,53.0448],[6.9321,53.0462],[6.9329,53.0493],[6.926,53.0546],[6.9293,53.0687],[6.9461,53.0791],[6.9597,53.0923],[6.9815,53.0831],[7.0002,53.0572]]]}},"10008_1834":{"n":"Nieuweschans","c":10008,"g":{"type":"Polygon","coordinates":[[[7.1466,53.155],[7.1542,53.1605],[7.1877,53.1716],[7.2072,53.184],[7.2257,53.1784],[7.2042,53.1726],[7.1892,53.1497],[7.1767,53.1486],[7.1742,53.1452],[7.1466,53.155]]]}},"10126_1834":{"n":"Nieuwolda","c":10126,"g":{"type":"Polygon","coordinates":[[[7.1186,53.2457],[7.1181,53.2414],[7.1053,53.2403],[7.0891,53.2283],[7.0735,53.224],[7.0354,53.2231],[7.0166,53.2423],[6.9933,53.2184],[6.9766,53.211],[6.9738,53.2201],[6.9569,53.2169],[6.9551,53.2207],[6.9249,53.2346],[6.9421,53.2461],[6.9468,53.2442],[6.9553,53.2553],[6.9596,53.2535],[7.0025,53.2641],[7.0113,53.2622],[7.0221,53.2513],[7.0343,53.251],[7.0483,53.2607],[7.0493,53.2532],[7.0656,53.2386],[7.09,53.252],[7.1036,53.2467],[7.1186,53.2457]]]}},"10814_1834":{"n":"Noordbroek","c":10814,"g":{"type":"Polygon","coordinates":[[[6.9138,53.1789],[6.8109,53.1805],[6.8221,53.1879],[6.8207,53.1954],[6.8387,53.2006],[6.8529,53.2108],[6.8758,53.2189],[6.8806,53.2186],[6.8854,53.2224],[6.9028,53.2195],[6.9173,53.2221],[6.9292,53.208],[6.9209,53.2034],[6.9233,53.2016],[6.9196,53.1923],[6.9259,53.1909],[6.9236,53.1867],[6.9168,53.1867],[6.9138,53.1789]]]}},"10979_1834":{"n":"Noorddijk","c":10979,"g":{"type":"Polygon","coordinates":[[[6.548,53.2478],[6.5494,53.245],[6.5684,53.2387],[6.6335,53.2464],[6.6433,53.2292],[6.6411,53.2248],[6.6444,53.2195],[6.6662,53.1969],[6.6609,53.1962],[6.6407,53.1865],[6.6459,53.1838],[6.6398,53.1803],[6.6056,53.1917],[6.6015,53.1914],[6.6005,53.2001],[6.6084,53.2027],[6.5995,53.2095],[6.5962,53.2098],[6.5898,53.2231],[6.5576,53.2339],[6.5259,53.2309],[6.524,53.2376],[6.5318,53.2392],[6.5216,53.2534],[6.5317,53.2547],[6.5437,53.246],[6.548,53.2478]]]}},"10298_1834":{"n":"Oldehove","c":10298,"g":{"type":"Polygon","coordinates":[[[6.2976,53.3333],[6.3175,53.3235],[6.3172,53.3156],[6.3215,53.312],[6.3332,53.3116],[6.3431,53.3153],[6.362,53.3114],[6.3661,53.3168],[6.3722,53.3182],[6.408,53.3159],[6.4133,53.3185],[6.4161,53.3242],[6.4361,53.3239],[6.4364,53.3187],[6.4393,53.3132],[6.43,53.3124],[6.4296,53.3037],[6.4236,53.2979],[6.4242,53.2907],[6.4342,53.2891],[6.4259,53.2821],[6.422,53.2819],[6.4088,53.2744],[6.3984,53.2794],[6.3883,53.2708],[6.3809,53.2686],[6.3721,53.2625],[6.3469,53.2688],[6.3397,53.2679],[6.3363,53.276],[6.3236,53.2857],[6.3232,53.2956],[6.3316,53.3006],[6.3054,53.305],[6.3062,53.301],[6.298,53.3006],[6.2895,53.3022],[6.2946,53.3067],[6.2821,53.3092],[6.2854,53.3373],[6.2976,53.3333]]]}},"11332_1834":{"n":"Oldekerk","c":11332,"g":{"type":"Polygon","coordinates":[[[6.3126,53.2394],[6.316,53.2458],[6.3439,53.2482],[6.3587,53.2478],[6.3644,53.239],[6.3695,53.2386],[6.3791,53.2325],[6.3923,53.2288],[6.4096,53.2131],[6.3898,53.2115],[6.3825,53.2119],[6.38,53.2103],[6.3665,53.2087],[6.3596,53.2044],[6.3417,53.204],[6.328,53.2001],[6.3189,53.1994],[6.3126,53.2394]]]}},"10610_1834":{"n":"Onstwedde","c":10610,"g":{"type":"Polygon","coordinates":[[[7.0801,53.0562],[7.0783,53.0471],[7.0714,53.046],[7.0714,53.0391],[7.0779,53.0409],[7.0852,53.0403],[7.0888,53.0379],[7.0851,53.0351],[7.0844,53.0216],[7.09,53.0223],[7.1039,53.0147],[7.0735,53.0006],[7.0714,52.9491],[7.0652,52.9483],[7.0661,52.9285],[7.0367,52.9256],[7.026,52.9142],[6.9787,52.9506],[6.9381,52.9859],[6.9539,53.0065],[7.0002,53.0572],[7.0099,53.0697],[7.0122,53.0659],[7.0176,53.067],[7.036,53.061],[7.0677,53.0636],[7.0801,53.0562]]]}},"10848_1834":{"n":"Oude Pekela","c":10848,"g":{"type":"Polygon","coordinates":[[[7.0286,53.1096],[7.0291,53.1073],[7.044,53.0982],[7.0176,53.067],[7.0122,53.0659],[7.0099,53.0697],[7.0002,53.0572],[6.9815,53.0831],[6.9597,53.0923],[6.9608,53.1051],[6.9686,53.1074],[6.9785,53.1148],[6.987,53.111],[7.0286,53.1096]]]}},"10080_1834":{"n":"Sappemeer","c":10080,"g":{"type":"Polygon","coordinates":[[[6.8253,53.1808],[6.8213,53.1775],[6.8218,53.1708],[6.8159,53.16],[6.8169,53.1486],[6.8184,53.143],[6.8083,53.1418],[6.8086,53.1384],[6.8012,53.1362],[6.8021,53.1343],[6.7938,53.1322],[6.7897,53.1408],[6.7739,53.1422],[6.7726,53.1648],[6.765,53.1671],[6.7669,53.1746],[6.8109,53.1805],[6.8253,53.1808]]]}},"10711_1834":{"n":"Scheemda","c":10711,"g":{"type":"Polygon","coordinates":[[[6.9154,53.2385],[6.9551,53.2207],[6.9569,53.2169],[6.9888,53.1712],[6.989,53.1645],[6.9947,53.1628],[6.9986,53.1665],[7.0124,53.1635],[7.018,53.153],[6.987,53.111],[6.9785,53.1148],[6.9686,53.1074],[6.9502,53.1473],[6.9563,53.1499],[6.9565,53.1557],[6.9424,53.1563],[6.942,53.1596],[6.9315,53.1596],[6.9319,53.1614],[6.9101,53.167],[6.9168,53.1867],[6.9236,53.1867],[6.9259,53.1909],[6.9196,53.1923],[6.9233,53.2016],[6.9209,53.2034],[6.9292,53.208],[6.9173,53.2221],[6.9133,53.2215],[6.9108,53.2262],[6.9107,53.2354],[6.9154,53.2385]]]}},"10747_1834":{"n":"Slochteren","c":10747,"g":{"type":"Polygon","coordinates":[[[6.8154,53.2926],[6.8263,53.2933],[6.8295,53.2877],[6.8461,53.2862],[6.85,53.2915],[6.8584,53.2925],[6.863,53.2901],[6.8872,53.2932],[6.8896,53.2881],[6.8966,53.282],[6.8867,53.2766],[6.9085,53.2748],[6.9086,53.2661],[6.9146,53.2611],[6.9158,53.2556],[6.9112,53.2547],[6.9083,53.245],[6.915,53.2434],[6.9154,53.2385],[6.9107,53.2354],[6.9108,53.2262],[6.9133,53.2215],[6.9028,53.2195],[6.8854,53.2224],[6.8806,53.2186],[6.8758,53.2189],[6.8529,53.2108],[6.8387,53.2006],[6.8207,53.1954],[6.8221,53.1879],[6.8109,53.1805],[6.7669,53.1746],[6.765,53.1671],[6.7726,53.1648],[6.7488,53.1647],[6.7179,53.1681],[6.6826,53.196],[6.6662,53.1969],[6.6444,53.2195],[6.6411,53.2248],[6.6433,53.2292],[6.6524,53.2327],[6.6706,53.2303],[6.681,53.2375],[6.683,53.2447],[6.6917,53.2466],[6.7053,53.2405],[6.7162,53.2418],[6.7173,53.2354],[6.7237,53.2333],[6.7252,53.2381],[6.7325,53.2412],[6.7371,53.2411],[6.7381,53.2432],[6.7329,53.2448],[6.7299,53.2532],[6.7419,53.2599],[6.7506,53.2612],[6.7548,53.264],[6.7706,53.2679],[6.7724,53.2766],[6.786,53.2837],[6.7935,53.2784],[6.8108,53.2827],[6.8066,53.2895],[6.8154,53.2926]]]}},"10771_1834":{"n":"Stedum","c":10771,"g":{"type":"Polygon","coordinates":[[[6.7005,53.3559],[6.7372,53.3837],[6.7435,53.3823],[6.7522,53.363],[6.7505,53.3615],[6.7376,53.3604],[6.7325,53.3624],[6.7213,53.3583],[6.7262,53.352],[6.7193,53.348],[6.7288,53.3401],[6.7277,53.3368],[6.7157,53.334],[6.7177,53.3314],[6.7079,53.3251],[6.72,53.3137],[6.7388,53.3082],[6.7288,53.3017],[6.7109,53.3056],[6.69,53.294],[6.6764,53.3002],[6.6549,53.3045],[6.6833,53.345],[6.7005,53.3559]]]}},"10891_1834":{"n":"Ten Boer","c":10891,"g":{"type":"Polygon","coordinates":[[[6.7388,53.3082],[6.7521,53.3065],[6.7476,53.3025],[6.7617,53.293],[6.774,53.2939],[6.7828,53.2824],[6.7724,53.2766],[6.7706,53.2679],[6.7548,53.264],[6.7506,53.2612],[6.7419,53.2599],[6.7299,53.2532],[6.7329,53.2448],[6.7381,53.2432],[6.7371,53.2411],[6.7325,53.2412],[6.7252,53.2381],[6.7237,53.2333],[6.7173,53.2354],[6.7162,53.2418],[6.7053,53.2405],[6.6917,53.2466],[6.683,53.2447],[6.681,53.2375],[6.6706,53.2303],[6.6524,53.2327],[6.6433,53.2292],[6.6335,53.2464],[6.6348,53.2564],[6.6266,53.2634],[6.6549,53.3045],[6.6764,53.3002],[6.69,53.294],[6.7109,53.3056],[6.7288,53.3017],[6.7388,53.3082]]]}},"11023_1834":{"n":"Termunten","c":11023,"g":{"type":"Polygon","coordinates":[[[6.9146,53.2611],[6.928,53.2667],[6.9343,53.2715],[6.9394,53.2719],[6.9523,53.2631],[6.9826,53.2694],[6.9889,53.2679],[7.001,53.2786],[6.9975,53.2811],[7.0003,53.292],[7.0112,53.3022],[7.0247,53.3],[7.0765,53.2965],[7.0957,53.3029],[7.0986,53.3002],[7.08,53.29],[7.0826,53.2756],[7.0792,53.2669],[7.0798,53.259],[7.09,53.252],[7.0656,53.2386],[7.0493,53.2532],[7.0483,53.2607],[7.0343,53.251],[7.0221,53.2513],[7.0113,53.2622],[7.0025,53.2641],[6.9596,53.2535],[6.9553,53.2553],[6.9468,53.2442],[6.9421,53.2461],[6.9249,53.2346],[6.9154,53.2385],[6.915,53.2434],[6.9083,53.245],[6.9112,53.2547],[6.9158,53.2556],[6.9146,53.2611]]]}},"10956_1834":{"n":"'t Zandt","c":10956,"g":{"type":"Polygon","coordinates":[[[6.8767,53.4277],[6.7807,53.3927],[6.8035,53.3662],[6.8043,53.3616],[6.8149,53.3556],[6.8238,53.3555],[6.83,53.3487],[6.8301,53.3428],[6.8339,53.3394],[6.8352,53.3286],[6.8377,53.3269],[6.8331,53.3245],[6.8093,53.3208],[6.7977,53.3267],[6.7878,53.3253],[6.7826,53.3287],[6.7783,53.3289],[6.7607,53.3364],[6.7532,53.3364],[6.7379,53.3413],[6.7399,53.349],[6.7262,53.352],[6.7213,53.3583],[6.7325,53.3624],[6.7376,53.3604],[6.7505,53.3615],[6.7522,53.363],[6.7435,53.3823],[6.7372,53.3837],[6.7436,53.3889],[6.7409,53.3953],[6.7521,53.3959],[6.7534,53.3942],[6.7729,53.3975],[6.7701,53.4021],[6.7824,53.4056],[6.787,53.4016],[6.8029,53.4066],[6.8482,53.4258],[6.8603,53.4276],[6.8692,53.4317],[6.8767,53.4277]]]}},"11137_1834":{"n":"Uithuizen","c":11137,"g":{"type":"Polygon","coordinates":[[[6.7329,53.4606],[6.6925,53.4103],[6.7036,53.4044],[6.7234,53.3981],[6.7191,53.3948],[6.7079,53.397],[6.6988,53.3952],[6.6961,53.3906],[6.6892,53.3868],[6.6805,53.3878],[6.6776,53.3932],[6.6723,53.3948],[6.6645,53.3948],[6.6632,53.3892],[6.6559,53.3893],[6.6533,53.3923],[6.633,53.3921],[6.6327,53.3959],[6.6512,53.4004],[6.6546,53.4034],[6.6545,53.4108],[6.6374,53.4456],[6.7329,53.4606]]]}},"10246_1834":{"n":"Uithuizermeeden","c":10246,"g":{"type":"Polygon","coordinates":[[[6.8692,53.4317],[6.8603,53.4276],[6.8482,53.4258],[6.8029,53.4066],[6.787,53.4016],[6.7824,53.4056],[6.7701,53.4021],[6.7729,53.3975],[6.7534,53.3942],[6.7521,53.3959],[6.7409,53.3953],[6.7436,53.3889],[6.7372,53.3837],[6.7087,53.3802],[6.6961,53.3906],[6.6988,53.3952],[6.7079,53.397],[6.7191,53.3948],[6.7234,53.3981],[6.7036,53.4044],[6.6925,53.4103],[6.7329,53.4606],[6.7489,53.4618],[6.7755,53.4573],[6.8206,53.4418],[6.8499,53.4386],[6.8692,53.4317]]]}},"10180_1834":{"n":"Ulrum","c":10180,"g":{"type":"Polygon","coordinates":[[[6.3081,53.3903],[6.308,53.3855],[6.3206,53.3759],[6.3216,53.3682],[6.3309,53.3667],[6.3408,53.3707],[6.3605,53.368],[6.3673,53.3694],[6.3705,53.3618],[6.3656,53.3536],[6.3685,53.3468],[6.3556,53.3366],[6.3498,53.3261],[6.3528,53.3196],[6.3482,53.3139],[6.3431,53.3153],[6.3332,53.3116],[6.3215,53.312],[6.3172,53.3156],[6.3175,53.3235],[6.2976,53.3333],[6.2999,53.3357],[6.2898,53.3389],[6.2746,53.3607],[6.2767,53.376],[6.2938,53.3857],[6.3081,53.3903]]]}},"11035_1834":{"n":"Usquert","c":11035,"g":{"type":"MultiPolygon","coordinates":[[[[6.6072,53.384],[6.5864,53.3768],[6.5818,53.3775],[6.583,53.3826],[6.578,53.3854],[6.5776,53.3876],[6.5807,53.3907],[6.5715,53.4109],[6.574,53.4173],[6.568,53.427],[6.6374,53.4456],[6.6545,53.4108],[6.6546,53.4034],[6.6512,53.4004],[6.6327,53.3959],[6.633,53.3921],[6.6196,53.3915],[6.606,53.3869],[6.6072,53.384]]],[[[6.5943,53.5343],[6.5902,53.5313],[6.5816,53.5316],[6.5806,53.536],[6.5661,53.5375],[6.5788,53.5443],[6.6095,53.5442],[6.61,53.5429],[6.5984,53.5406],[6.5943,53.5343]]],[[[6.4971,53.538],[6.5066,53.5322],[6.5067,53.5289],[6.4974,53.5298],[6.4962,53.5321],[6.4894,53.5285],[6.4524,53.5355],[6.4453,53.5323],[6.4329,53.5331],[6.4352,53.5389],[6.4437,53.5473],[6.4971,53.538]]]]}},"11292_1834":{"n":"Veendam","c":11292,"g":{"type":"Polygon","coordinates":[[[6.801,53.1192],[6.8214,53.1254],[6.8223,53.1222],[6.8726,53.1196],[6.8744,53.1223],[6.8837,53.1213],[6.8854,53.125],[6.9579,53.1156],[6.9608,53.1051],[6.9597,53.0923],[6.9461,53.0791],[6.9293,53.0687],[6.926,53.0546],[6.9329,53.0493],[6.9321,53.0462],[6.9195,53.0448],[6.92,53.0412],[6.9038,53.04],[6.8907,53.07],[6.8545,53.0891],[6.8062,53.09],[6.8006,53.115],[6.8058,53.1158],[6.801,53.1192]]]}},"11249_1834":{"n":"Vlagtwedde","c":11249,"g":{"type":"Polygon","coordinates":[[[7.1048,53.058],[7.1231,53.0423],[7.1271,53.0339],[7.1324,53.0321],[7.1396,53.0188],[7.1566,53.0138],[7.1632,53.0051],[7.1972,53.0022],[7.2138,53.0072],[7.2207,53.0041],[7.2098,52.9957],[7.1853,52.9397],[7.0891,52.8463],[7.0901,52.8342],[7.0745,52.8352],[7.0734,52.8409],[7.0759,52.8581],[7.064,52.8695],[7.052,52.8679],[7.0185,52.8681],[7.0152,52.8691],[7.0464,52.912],[7.026,52.9142],[7.0367,52.9256],[7.0661,52.9285],[7.0652,52.9483],[7.0714,52.9491],[7.0735,53.0006],[7.1039,53.0147],[7.09,53.0223],[7.0844,53.0216],[7.0851,53.0351],[7.0888,53.0379],[7.0852,53.0403],[7.0779,53.0409],[7.0714,53.0391],[7.0714,53.046],[7.0783,53.0471],[7.0801,53.0562],[7.087,53.0571],[7.0887,53.0541],[7.1048,53.058]]]}},"10498_1834":{"n":"Warffum","c":10498,"g":{"type":"Polygon","coordinates":[[[6.568,53.427],[6.574,53.4173],[6.5715,53.4109],[6.5807,53.3907],[6.5776,53.3876],[6.578,53.3854],[6.583,53.3826],[6.5818,53.3775],[6.5864,53.3768],[6.5886,53.3666],[6.5822,53.3393],[6.5753,53.3434],[6.5696,53.3534],[6.5558,53.3544],[6.5578,53.3691],[6.5491,53.3753],[6.5391,53.3754],[6.5254,53.3829],[6.5283,53.3873],[6.5244,53.3936],[6.5332,53.3961],[6.5359,53.4013],[6.5413,53.4017],[6.5472,53.4047],[6.5476,53.4247],[6.568,53.427]]]}},"10247_1834":{"n":"Wedde","c":10247,"g":{"type":"Polygon","coordinates":[[[7.0823,53.1387],[7.1052,53.1391],[7.1139,53.1433],[7.1169,53.1176],[7.1257,53.113],[7.1237,53.1097],[7.1135,53.1078],[7.1161,53.1011],[7.0974,53.0976],[7.0972,53.0946],[7.0942,53.0927],[7.0974,53.086],[7.0934,53.0853],[7.1048,53.058],[7.0887,53.0541],[7.087,53.0571],[7.0801,53.0562],[7.0677,53.0636],[7.036,53.061],[7.0176,53.067],[7.044,53.0982],[7.0291,53.1073],[7.0286,53.1096],[7.0485,53.1269],[7.0823,53.1387]]]}},"10825_1834":{"n":"Wildervank","c":10825,"g":{"type":"Polygon","coordinates":[[[6.8116,53.0653],[6.8062,53.09],[6.8545,53.0891],[6.8907,53.07],[6.9038,53.04],[6.9026,53.0301],[6.9049,53.0268],[6.912,53.0313],[6.9539,53.0065],[6.9381,52.9859],[6.9344,52.9892],[6.8958,53.0136],[6.8116,53.0653]]]}},"10453_1834":{"n":"Winschoten","c":10453,"g":{"type":"Polygon","coordinates":[[[7.0124,53.1635],[7.0559,53.1638],[7.0656,53.1584],[7.0819,53.1409],[7.0823,53.1387],[7.0485,53.1269],[7.0286,53.1096],[6.987,53.111],[7.018,53.153],[7.0124,53.1635]]]}},"11135_1834":{"n":"Winsum","c":11135,"g":{"type":"Polygon","coordinates":[[[6.471,53.3556],[6.4846,53.3621],[6.4923,53.3612],[6.4918,53.3484],[6.5207,53.3456],[6.5313,53.3417],[6.5694,53.3351],[6.5616,53.3102],[6.5225,53.3056],[6.5188,53.3015],[6.5077,53.3018],[6.5076,53.2989],[6.5193,53.2977],[6.5184,53.294],[6.5013,53.2971],[6.4844,53.3123],[6.4841,53.3175],[6.4756,53.319],[6.473,53.3167],[6.462,53.3177],[6.4604,53.3231],[6.4563,53.3236],[6.4572,53.3275],[6.4778,53.3346],[6.4776,53.3383],[6.4838,53.3409],[6.4818,53.3515],[6.471,53.3556]]]}},"11282_1834":{"n":"Zuidbroek (Gr.)","c":11282,"g":{"type":"Polygon","coordinates":[[[6.8253,53.1808],[6.9138,53.1789],[6.9101,53.167],[6.8995,53.1587],[6.8932,53.16],[6.8933,53.1571],[6.8802,53.1562],[6.8654,53.1494],[6.8242,53.1481],[6.8234,53.15],[6.8169,53.1486],[6.8159,53.16],[6.8218,53.1708],[6.8213,53.1775],[6.8253,53.1808]]]}},"10021_1834":{"n":"Zuidhorn","c":10021,"g":{"type":"Polygon","coordinates":[[[6.3469,53.2688],[6.3721,53.2625],[6.3809,53.2686],[6.3883,53.2708],[6.3984,53.2794],[6.4088,53.2744],[6.4091,53.2677],[6.4056,53.2649],[6.4129,53.2559],[6.4303,53.2513],[6.4317,53.2472],[6.4265,53.2427],[6.4353,53.2422],[6.4431,53.2246],[6.4311,53.2244],[6.427,53.2197],[6.4127,53.2167],[6.4096,53.2131],[6.3923,53.2288],[6.3791,53.2325],[6.3695,53.2386],[6.3644,53.239],[6.3587,53.2478],[6.3439,53.2482],[6.3469,53.2688]]]}},"10426_1841":{"n":"Groningen","c":10426,"g":{"type":"Polygon","coordinates":[[[6.6005,53.2001],[6.6015,53.1914],[6.5973,53.1911],[6.5989,53.1876],[6.582,53.1825],[6.5817,53.1793],[6.5647,53.1809],[6.5471,53.1777],[6.5384,53.191],[6.5342,53.1923],[6.5216,53.1907],[6.516,53.196],[6.5262,53.2003],[6.5233,53.2093],[6.5162,53.2238],[6.5255,53.2255],[6.5259,53.2309],[6.5576,53.2339],[6.5898,53.2231],[6.5962,53.2098],[6.5995,53.2095],[6.6084,53.2027],[6.6005,53.2001]]]}},"11058_1841":{"n":"Haren","c":11058,"g":{"type":"Polygon","coordinates":[[[6.6398,53.1803],[6.6599,53.1763],[6.6634,53.1679],[6.6817,53.158],[6.6925,53.1478],[6.6897,53.1448],[6.6917,53.1404],[6.6916,53.1286],[6.6893,53.1254],[6.6812,53.1243],[6.6791,53.1206],[6.6808,53.1146],[6.6386,53.104],[6.6414,53.1074],[6.6297,53.1118],[6.6329,53.117],[6.6189,53.1257],[6.6167,53.1312],[6.6122,53.1324],[6.6104,53.1357],[6.6054,53.1384],[6.5905,53.1442],[6.5837,53.1596],[6.567,53.1561],[6.5589,53.1694],[6.5471,53.1777],[6.5647,53.1809],[6.5817,53.1793],[6.582,53.1825],[6.5989,53.1876],[6.5973,53.1911],[6.6056,53.1917],[6.6398,53.1803]]]}},"10953_1841":{"n":"Hoogkerk","c":10953,"g":{"type":"Polygon","coordinates":[[[6.5103,53.2477],[6.524,53.2376],[6.5259,53.2309],[6.5255,53.2255],[6.5162,53.2238],[6.5233,53.2093],[6.5262,53.2003],[6.5106,53.1945],[6.4986,53.193],[6.4936,53.1961],[6.4912,53.2003],[6.4804,53.2027],[6.4681,53.1989],[6.4651,53.2038],[6.482,53.2453],[6.4973,53.2421],[6.5103,53.2477]]]}}},"years":{"1834":["10996_1834","10999_1834","10886_1834","10539_1834","10425_1834","11043_1834","10340_1834","11294_1834","10976_1834","10904_1834","10136_1834","10212_1834","10244_1834","10426_1834","11080_1834","11058_1834","10410_1834","10953_1834","10372_1834","10628_1834","10604_1834","11050_1834","10934_1834","11431_1834","10304_1834","11199_1834","10356_1834","10550_1834","10950_1834","10008_1834","10126_1834","10814_1834","10979_1834","10298_1834","11332_1834","10610_1834","10848_1834","10080_1834","10711_1834","10747_1834","10771_1834","10891_1834","11023_1834","10956_1834","11137_1834","10246_1834","10180_1834","11035_1834","11292_1834","11249_1834","10498_1834","10247_1834","10825_1834","10453_1834","11135_1834","11282_1834","10021_1834"],"1835":["10996_1834","10999_1834","10886_1834","10539_1834","10425_1834","11043_1834","10340_1834","11294_1834","10976_1834","10904_1834","10136_1834","10212_1834","10244_1834","10426_1834","11080_1834","11058_1834","10410_1834","10953_1834","10372_1834","10628_1834","10604_1834","11050_1834","10934_1834","11431_1834","10304_1834","11199_1834","10356_1834","10550_1834","10950_1834","10008_1834","10126_1834","10814_1834","10979_1834","10298_1834","11332_1834","10610_1834","10848_1834","10080_1834","10711_1834","10747_1834","10771_1834","10891_1834","11023_1834","10956_1834","11137_1834","10246_1834","10180_1834","11035_1834","11292_1834","11249_1834","10498_1834","10247_1834","10825_1834","10453_1834","11135_1834","11282_1834","10021_1834"],"1836":["10996_1834","10999_1834","10886_1834","10539_1834","10425_1834","11043_1834","10340_1834","11294_1834","10976_1834","10904_1834","10136_1834","10212_1834","10244_1834","10426_1834","11080_1834","11058_1834","10410_1834","10953_1834","10372_1834","10628_1834","10604_1834","11050_1834","10934_1834","11431_1834","10304_1834","11199_1834","10356_1834","10550_1834","10950_1834","10008_1834","10126_1834","10814_1834","10979_1834","10298_1834","11332_1834","10610_1834","10848_1834","10080_1834","10711_1834","10747_1834","10771_1834","10891_1834","11023_1834","10956_1834","11137_1834","10246_1834","10180_1834","11035_1834","11292_1834","11249_1834","10498_1834","10247_1834","10825_1834","10453_1834","11135_1834","11282_1834","10021_1834"],"1837":["10996_1834","10999_1834","10886_1834","10539_1834","10425_1834","11043_1834","10340_1834","11294_1834","10976_1834","10904_1834","10136_1834","10212_1834","10244_1834","10426_1834","11080_1834","11058_1834","10410_1834","10953_1834","10372_1834","10628_1834","10604_1834","11050_1834","10934_1834","11431_1834","10304_1834","11199_1834","10356_1834","10550_1834","10950_1834","10008_1834","10126_1834","10814_1834","10979_1834","10298_1834","11332_1834","10610_1834","10848_1834","10080_1834","10711_1834","10747_1834","10771_1834","10891_1834","11023_1834","10956_1834","11137_1834","10246_1834","10180_1834","11035_1834","11292_1834","11249_1834","10498_1834","10247_1834","10825_1834","10453_1834","11135_1834","11282_1834","10021_1834"],"1838":["10996_1834","10999_1834","10886_1834","10539_1834","10425_1834","11043_1834","10340_1834","11294_1834","10976_1834","10904_1834","10136_1834","10212_1834","10244_1834","10426_1834","11080_1834","11058_1834","10410_1834","10953_1834","10372_1834","10628_1834","10604_1834","11050_1834","10934_1834","11431_1834","10304_1834","11199_1834","10356_1834","10550_1834","10950_1834","10008_1834","10126_1834","10814_1834","10979_1834","10298_1834","11332_1834","10610_1834","10848_1834","10080_1834","10711_1834","10747_1834","10771_1834","10891_1834","11023_1834","10956_1834","11137_1834","10246_1834","10180_1834","11035_1834","11292_1834","11249_1834","10498_1834","10247_1834","10825_1834","10453_1834","11135_1834","11282_1834","10021_1834"],"1839":["10996_1834","10999_1834","10886_1834","10539_1834","10425_1834","11043_1834","10340_1834","11294_1834","10976_1834","10904_1834","10136_1834","10212_1834","10244_1834","10426_1834","11080_1834","11058_1834","10410_1834","10953_1834","10372_1834","10628_1834","10604_1834","11050_1834","10934_1834","11431_1834","10304_1834","11199_1834","10356_1834","10550_1834","10950_1834","10008_1834","10126_1834","10814_1834","10979_1834","10298_1834","11332_1834","10610_1834","10848_1834","10080_1834","10711_1834","10747_1834","10771_1834","10891_1834","11023_1834","10956_1834","11137_1834","10246_1834","10180_1834","11035_1834","11292_1834","11249_1834","10498_1834","10247_1834","10825_1834","10453_1834","11135_1834","11282_1834","10021_1834"],"1840":["10996_1834","10999_1834","10886_1834","10539_1834","10425_1834","11043_1834","10340_1834","11294_1834","10976_1834","10904_1834","10136_1834","10212_1834","10244_1834","10426_1834","11080_1834","11058_1834","10410_1834","10953_1834","10372_1834","10628_1834","10604_1834","11050_1834","10934_1834","11431_1834","10304_1834","11199_1834","10356_1834","10550_1834","10950_1834","10008_1834","10126_1834","10814_1834","10979_1834","10298_1834","11332_1834","10610_1834","10848_1834","10080_1834","10711_1834","10747_1834","10771_1834","10891_1834","11023_1834","10956_1834","11137_1834","10246_1834","10180_1834","11035_1834","11292_1834","11249_1834","10498_1834","10247_1834","10825_1834","10453_1834","11135_1834","11282_1834","10021_1834"],"1841":["10996_1834","10999_1834","10886_1834","10539_1834","10425_1834","11043_1834","10340_1834","11294_1834","10976_1834","10904_1834","10136_1834","10212_1834","10244_1834","10426_1841","11080_1834","11058_1841","10410_1834","10953_1841","10372_1834","10628_1834","10604_1834","11050_1834","10934_1834","11431_1834","10304_1834","11199_1834","10356_1834","10550_1834","10950_1834","10008_1834","10126_1834","10814_1834","10979_1834","10298_1834","11332_1834","10610_1834","10848_1834","10080_1834","10711_1834","10747_1834","10771_1834","10891_1834","11023_1834","10956_1834","11137_1834","10246_1834","10180_1834","11035_1834","11292_1834","11249_1834","10498_1834","10247_1834","10825_1834","10453_1834","11135_1834","11282_1834","10021_1834"],"1842":["10996_1834","10999_1834","10886_1834","10539_1834","10425_1834","11043_1834","10340_1834","11294_1834","10976_1834","10904_1834","10136_1834","10212_1834","10244_1834","10426_1841","11080_1834","11058_1841","10410_1834","10953_1841","10372_1834","10628_1834","10604_1834","11050_1834","10934_1834","11431_1834","10304_1834","11199_1834","10356_1834","10550_1834","10950_1834","10008_1834","10126_1834","10814_1834","10979_1834","10298_1834","11332_1834","10610_1834","10848_1834","10080_1834","10711_1834","10747_1834","10771_1834","10891_1834","11023_1834","10956_1834","11137_1834","10246_1834","10180_1834","11035_1834","11292_1834","11249_1834","10498_1834","10247_1834","10825_1834","10453_1834","11135_1834","11282_1834","10021_1834"],"1843":["10996_1834","10999_1834","10886_1834","10539_1834","10425_1834","11043_1834","10340_1834","11294_1834","10976_1834","10904_1834","10136_1834","10212_1834","10244_1834","10426_1841","11080_1834","11058_1841","10410_1834","10953_1841","10372_1834","10628_1834","10604_1834","11050_1834","10934_1834","11431_1834","10304_1834","11199_1834","10356_1834","10550_1834","10950_1834","10008_1834","10126_1834","10814_1834","10979_1834","10298_1834","11332_1834","10610_1834","10848_1834","10080_1834","10711_1834","10747_1834","10771_1834","10891_1834","11023_1834","10956_1834","11137_1834","10246_1834","10180_1834","11035_1834","11292_1834","11249_1834","10498_1834","10247_1834","10825_1834","10453_1834","11135_1834","11282_1834","10021_1834"],"1844":["10996_1834","10999_1834","10886_1834","10539_1834","10425_1834","11043_1834","10340_1834","11294_1834","10976_1834","10904_1834","10136_1834","10212_1834","10244_1834","10426_1841","11080_1834","11058_1841","10410_1834","10953_1841","10372_1834","10628_1834","10604_1834","11050_1834","10934_1834","11431_1834","10304_1834","11199_1834","10356_1834","10550_1834","10950_1834","10008_1834","10126_1834","10814_1834","10979_1834","10298_1834","11332_1834","10610_1834","10848_1834","10080_1834","10711_1834","10747_1834","10771_1834","10891_1834","11023_1834","10956_1834","11137_1834","10246_1834","10180_1834","11035_1834","11292_1834","11249_1834","10498_1834","10247_1834","10825_1834","10453_1834","11135_1834","11282_1834","10021_1834"],"1845":["10996_1834","10999_1834","10886_1834","10539_1834","10425_1834","11043_1834","10340_1834","11294_1834","10976_1834","10904_1834","10136_1834","10212_1834","10244_1834","10426_1841","11080_1834","11058_1841","10410_1834","10953_1841","10372_1834","10628_1834","10604_1834","11050_1834","10934_1834","11431_1834","10304_1834","11199_1834","10356_1834","10550_1834","10950_1834","10008_1834","10126_1834","10814_1834","10979_1834","10298_1834","11332_1834","10610_1834","10848_1834","10080_1834","10711_1834","10747_1834","10771_1834","10891_1834","11023_1834","10956_1834","11137_1834","10246_1834","10180_1834","11035_1834","11292_1834","11249_1834","10498_1834","10247_1834","10825_1834","10453_1834","11135_1834","11282_1834","10021_1834"],"1846":["10996_1834","10999_1834","10886_1834","10539_1834","10425_1834","11043_1834","10340_1834","11294_1834","10976_1834","10904_1834","10136_1834","10212_1834","10244_1834","10426_1841","11080_1834","11058_1841","10410_1834","10953_1841","10372_1834","10628_1834","10604_1834","11050_1834","10934_1834","11431_1834","10304_1834","11199_1834","10356_1834","10550_1834","10950_1834","10008_1834","10126_1834","10814_1834","10979_1834","10298_1834","11332_1834","10610_1834","10848_1834","10080_1834","10711_1834","10747_1834","10771_1834","10891_1834","11023_1834","10956_1834","11137_1834","10246_1834","10180_1834","11035_1834","11292_1834","11249_1834","10498_1834","10247_1834","10825_1834","10453_1834","11135_1834","11282_1834","10021_1834"],"1847":["10996_1834","10999_1834","10886_1834","10539_1834","10425_1834","11043_1834","10340_1834","11294_1834","10976_1834","10904_1834","10136_1834","10212_1834","10244_1834","10426_1841","11080_1834","11058_1841","10410_1834","10953_1841","10372_1834","10628_1834","10604_1834","11050_1834","10934_1834","11431_1834","10304_1834","11199_1834","10356_1834","10550_1834","10950_1834","10008_1834","10126_1834","10814_1834","10979_1834","10298_1834","11332_1834","10610_1834","10848_1834","10080_1834","10711_1834","10747_1834","10771_1834","10891_1834","11023_1834","10956_1834","11137_1834","10246_1834","10180_1834","11035_1834","11292_1834","11249_1834","10498_1834","10247_1834","10825_1834","10453_1834","11135_1834","11282_1834","10021_1834"],"1848":["10996_1834","10999_1834","10886_1834","10539_1834","10425_1834","11043_1834","10340_1834","11294_1834","10976_1834","10904_1834","10136_1834","10212_1834","10244_1834","10426_1841","11080_1834","11058_1841","10410_1834","10953_1841","10372_1834","10628_1834","10604_1834","11050_1834","10934_1834","11431_1834","10304_1834","11199_1834","10356_1834","10550_1834","10950_1834","10008_1834","10126_1834","10814_1834","10979_1834","10298_1834","11332_1834","10610_1834","10848_1834","10080_1834","10711_1834","10747_1834","10771_1834","10891_1834","11023_1834","10956_1834","11137_1834","10246_1834","10180_1834","11035_1834","11292_1834","11249_1834","10498_1834","10247_1834","10825_1834","10453_1834","11135_1834","11282_1834","10021_1834"],"1849":["10996_1834","10999_1834","10886_1834","10539_1834","10425_1834","11043_1834","10340_1834","11294_1834","10976_1834","10904_1834","10136_1834","10212_1834","10244_1834","10426_1841","11080_1834","11058_1841","10410_1834","10953_1841","10372_1834","10628_1834","10604_1834","11050_1834","10934_1834","11431_1834","10304_1834","11199_1834","10356_1834","10550_1834","10950_1834","10008_1834","10126_1834","10814_1834","10979_1834","10298_1834","11332_1834","10610_1834","10848_1834","10080_1834","10711_1834","10747_1834","10771_1834","10891_1834","11023_1834","10956_1834","11137_1834","10246_1834","10180_1834","11035_1834","11292_1834","11249_1834","10498_1834","10247_1834","10825_1834","10453_1834","11135_1834","11282_1834","10021_1834"],"1850":["10996_1834","10999_1834","10886_1834","10539_1834","10425_1834","11043_1834","10340_1834","11294_1834","10976_1834","10904_1834","10136_1834","10212_1834","10244_1834","10426_1841","11080_1834","11058_1841","10410_1834","10953_1841","10372_1834","10628_1834","10604_1834","11050_1834","10934_1834","11431_1834","10304_1834","11199_1834","10356_1834","10550_1834","10950_1834","10008_1834","10126_1834","10814_1834","10979_1834","10298_1834","11332_1834","10610_1834","10848_1834","10080_1834","10711_1834","10747_1834","10771_1834","10891_1834","11023_1834","10956_1834","11137_1834","10246_1834","10180_1834","11035_1834","11292_1834","11249_1834","10498_1834","10247_1834","10825_1834","10453_1834","11135_1834","11282_1834","10021_1834"],"1851":["10996_1834","10999_1834","10886_1834","10539_1834","10425_1834","11043_1834","10340_1834","11294_1834","10976_1834","10904_1834","10136_1834","10212_1834","10244_1834","10426_1841","11080_1834","11058_1841","10410_1834","10953_1841","10372_1834","10628_1834","10604_1834","11050_1834","10934_1834","11431_1834","10304_1834","11199_1834","10356_1834","10550_1834","10950_1834","10008_1834","10126_1834","10814_1834","10979_1834","10298_1834","11332_1834","10610_1834","10848_1834","10080_1834","10711_1834","10747_1834","10771_1834","10891_1834","11023_1834","10956_1834","11137_1834","10246_1834","10180_1834","11035_1834","11292_1834","11249_1834","10498_1834","10247_1834","10825_1834","10453_1834","11135_1834","11282_1834","10021_1834"]},"changes":{"1841":["Groningen","Haren","Hoogkerk"]},"ctx":{"type":"MultiPolygon","coordinates":[[[[6.437,52.802],[6.397,52.788],[6.394,52.792],[6.376,52.796],[6.339,52.796],[6.31,52.792],[6.303,52.788],[6.295,52.774],[6.298,52.762],[6.269,52.755],[6.252,52.755],[6.21,52.711],[6.211,52.702],[6.208,52.696],[6.199,52.696],[6.205,52.71],[6.196,52.719],[6.203,52.727],[6.18,52.765],[6.168,52.766],[6.155,52.76],[6.127,52.755],[6.12,52.747],[6.111,52.743],[6.091,52.753],[6.091,52.771],[6.052,52.764],[6.02,52.745],[6.019,52.742],[6.002,52.737],[5.99,52.738],[5.988,52.732],[5.977,52.735],[5.976,52.731],[5.969,52.731],[5.967,52.746],[5.959,52.745],[5.958,52.751],[5.95,52.758],[5.952,52.766],[5.98,52.783],[6.004,52.792],[5.999,52.793],[6.007,52.8],[6.017,52.802],[6.032,52.814],[6.026,52.819],[6.016,52.819],[5.997,52.814],[5.993,52.819],[5.985,52.819],[5.971,52.84],[5.956,52.835],[5.955,52.832],[5.945,52.835],[5.927,52.831],[5.92,52.818],[5.877,52.799],[5.854,52.804],[5.838,52.804],[5.834,52.809],[5.817,52.815],[5.85,52.861],[5.868,52.877],[5.885,52.886],[5.887,52.89],[5.905,52.893],[5.937,52.906],[5.951,52.919],[5.962,52.924],[5.978,52.922],[6.003,52.93],[6.036,52.914],[6.044,52.914],[6.085,52.932],[6.111,52.947],[6.128,52.948],[6.148,52.969],[6.19,52.98],[6.201,52.986],[6.205,53.033],[6.198,53.033],[6.177,53.017],[6.129,53.007],[6.099,52.989],[6.097,52.984],[6.079,52.978],[6.062,52.967],[6.03,52.96],[5.958,52.969],[5.968,52.982],[5.977,52.989],[5.974,52.991],[5.98,52.995],[5.971,53.006],[5.977,53.006],[5.985,53.022],[5.941,53.038],[5.94,53.041],[5.956,53.049],[5.944,53.05],[5.948,53.056],[5.945,53.061],[5.94,53.059],[5.931,53.067],[5.935,53.07],[5.93,53.075],[5.896,53.075],[5.874,53.071],[5.871,53.074],[5.871,53.079],[5.883,53.085],[5.879,53.089],[5.898,53.092],[5.89,53.103],[5.916,53.105],[5.914,53.112],[5.96,53.127],[5.953,53.135],[5.959,53.142],[5.985,53.138],[6.011,53.149],[6.05,53.152],[6.058,53.146],[6.075,53.144],[6.081,53.153],[6.104,53.147],[6.114,53.17],[6.105,53.174],[6.079,53.201],[6.085,53.205],[6.079,53.207],[6.086,53.21],[6.025,53.228],[6.019,53.237],[6.0,53.23],[5.955,53.222],[5.942,53.246],[5.925,53.248],[5.926,53.252],[5.859,53.283],[5.899,53.298],[5.893,53.305],[5.884,53.307],[5.886,53.31],[5.902,53.311],[5.902,53.315],[5.921,53.313],[5.923,53.309],[5.948,53.313],[5.954,53.319],[5.986,53.322],[5.991,53.328],[5.983,53.331],[5.991,53.337],[5.989,53.343],[6.008,53.346],[6.01,53.342],[6.015,53.342],[6.022,53.345],[6.024,53.354],[6.016,53.362],[6.016,53.372],[6.036,53.376],[6.039,53.382],[6.048,53.382],[6.053,53.378],[6.064,53.381],[6.066,53.386],[6.088,53.402],[6.119,53.4],[6.144,53.393],[6.155,53.374],[6.144,53.369],[6.14,53.354],[6.15,53.344],[6.176,53.337],[6.191,53.337],[6.189,53.33],[6.179,53.333],[6.175,53.329],[6.179,53.318],[6.206,53.32],[6.215,53.329],[6.256,53.33],[6.285,53.337],[6.282,53.309],[6.295,53.307],[6.288,53.3],[6.278,53.298],[6.27,53.287],[6.257,53.286],[6.254,53.272],[6.258,53.264],[6.246,53.264],[6.233,53.253],[6.236,53.249],[6.233,53.243],[6.215,53.236],[6.217,53.23],[6.228,53.225],[6.231,53.214],[6.212,53.197],[6.202,53.196],[6.201,53.19],[6.182,53.171],[6.176,53.155],[6.174,53.13],[6.205,53.112],[6.27,53.11],[6.28,53.106],[6.291,53.096],[6.347,53.085],[6.357,53.103],[6.363,53.104],[6.388,53.151],[6.396,53.16],[6.406,53.163],[6.41,53.174],[6.445,53.184],[6.449,53.19],[6.464,53.196],[6.465,53.199],[6.48,53.203],[6.491,53.2],[6.499,53.193],[6.516,53.196],[6.522,53.191],[6.538,53.191],[6.547,53.178],[6.559,53.169],[6.567,53.156],[6.584,53.16],[6.59,53.144],[6.617,53.131],[6.619,53.126],[6.633,53.117],[6.63,53.112],[6.641,53.107],[6.639,53.104],[6.681,53.115],[6.695,53.107],[6.712,53.116],[6.741,53.116],[6.812,53.065],[6.934,52.989],[7.026,52.914],[7.046,52.912],[7.015,52.869],[7.064,52.869],[7.076,52.858],[7.075,52.835],[7.09,52.834],[7.074,52.807],[7.058,52.662],[6.965,52.669],[6.915,52.684],[6.909,52.683],[6.899,52.691],[6.89,52.691],[6.887,52.68],[6.869,52.692],[6.807,52.699],[6.808,52.702],[6.804,52.704],[6.789,52.702],[6.784,52.71],[6.787,52.717],[6.776,52.743],[6.753,52.76],[6.727,52.77],[6.712,52.769],[6.691,52.76],[6.62,52.76],[6.577,52.721],[6.549,52.722],[6.548,52.725],[6.536,52.726],[6.491,52.79],[6.437,52.802]]],[[[6.127,53.445],[6.125,53.451],[6.132,53.459],[6.128,53.461],[6.12,53.456],[6.117,53.459],[6.122,53.47],[6.143,53.487],[6.155,53.491],[6.297,53.503],[6.336,53.501],[6.336,53.497],[6.329,53.494],[6.304,53.486],[6.274,53.484],[6.265,53.476],[6.243,53.47],[6.156,53.463],[6.144,53.458],[6.141,53.451],[6.127,53.445]]]]},"prov":{"type":"MultiPolygon","coordinates":[[[[6.1735,53.1299],[6.1756,53.1554],[6.1822,53.1712],[6.2009,53.1899],[6.2019,53.196],[6.2123,53.1968],[6.2253,53.2065],[6.2262,53.2107],[6.231,53.2138],[6.2277,53.2254],[6.2167,53.2302],[6.2154,53.2359],[6.2237,53.2371],[6.2277,53.2414],[6.2328,53.2427],[6.2321,53.2457],[6.2355,53.2488],[6.2325,53.2533],[6.2464,53.2636],[6.2582,53.2638],[6.2536,53.2717],[6.2573,53.2857],[6.2701,53.2866],[6.2781,53.2983],[6.2878,53.3005],[6.2944,53.3065],[6.2821,53.3092],[6.2854,53.3373],[6.2975,53.3333],[6.2997,53.3357],[6.2898,53.3389],[6.2746,53.3607],[6.2767,53.376],[6.2938,53.3857],[6.3728,53.4123],[6.387,53.4133],[6.4065,53.4122],[6.568,53.427],[6.6374,53.4456],[6.7329,53.4606],[6.7489,53.4618],[6.7755,53.4573],[6.8206,53.4418],[6.8499,53.4386],[6.8692,53.4317],[6.8767,53.4277],[6.8836,53.4215],[6.8839,53.4118],[6.8893,53.3948],[6.8911,53.3752],[6.8966,53.3679],[6.9008,53.3469],[6.9556,53.3214],[6.9858,53.3152],[7.0112,53.3022],[7.0247,53.3],[7.0765,53.2965],[7.0957,53.3029],[7.0986,53.3002],[7.08,53.29],[7.0826,53.2756],[7.0792,53.2669],[7.0798,53.2591],[7.09,53.252],[7.1036,53.2467],[7.1186,53.2457],[7.1451,53.242],[7.1529,53.2388],[7.1994,53.2324],[7.2102,53.2327],[7.2196,53.197],[7.2074,53.1841],[7.2257,53.1784],[7.2042,53.1725],[7.1892,53.1497],[7.1897,53.1446],[7.1813,53.1346],[7.1873,53.1217],[7.1844,53.1191],[7.2044,53.1088],[7.202,53.0799],[7.2032,53.052],[7.2138,53.0073],[7.2207,53.0041],[7.2098,52.9957],[7.1853,52.9397],[7.0891,52.8463],[7.0901,52.8342],[7.0745,52.8352],[7.0734,52.8409],[7.0758,52.8581],[7.064,52.8694],[7.052,52.8679],[7.0185,52.8681],[7.0152,52.8691],[7.0462,52.912],[7.026,52.9142],[6.9787,52.9506],[6.9344,52.9892],[6.8116,53.0653],[6.7741,53.0898],[6.7407,53.1155],[6.7123,53.1159],[6.7118,53.1222],[6.7194,53.1284],[6.699,53.1433],[6.6917,53.1404],[6.6916,53.1286],[6.6893,53.1254],[6.6812,53.1242],[6.6792,53.1206],[6.6808,53.1146],[6.6386,53.104],[6.6413,53.1075],[6.6297,53.1118],[6.6328,53.117],[6.6189,53.1257],[6.6167,53.1312],[6.6122,53.1324],[6.6104,53.1357],[6.6054,53.1384],[6.5905,53.1442],[6.5837,53.1595],[6.567,53.1561],[6.5589,53.1694],[6.5471,53.1777],[6.5383,53.191],[6.5342,53.1923],[6.5216,53.1907],[6.516,53.196],[6.4986,53.193],[6.4936,53.1961],[6.4911,53.2003],[6.4805,53.2027],[6.4681,53.1989],[6.4653,53.199],[6.4637,53.1957],[6.4493,53.1901],[6.4454,53.184],[6.4105,53.1744],[6.4057,53.1627],[6.3958,53.1599],[6.3877,53.1514],[6.3634,53.1043],[6.3574,53.1027],[6.3473,53.0849],[6.3131,53.0899],[6.2962,53.0958],[6.2905,53.0964],[6.2795,53.1062],[6.2698,53.1101],[6.261,53.1106],[6.2321,53.1097],[6.2054,53.112],[6.1818,53.1261],[6.1735,53.1299]]],[[[6.5661,53.5375],[6.5788,53.5443],[6.6095,53.5442],[6.61,53.543],[6.5984,53.5405],[6.5943,53.5343],[6.5902,53.5313],[6.5816,53.5316],[6.5805,53.536],[6.5661,53.5375]]],[[[6.4329,53.5331],[6.4352,53.5389],[6.4437,53.5473],[6.4971,53.538],[6.5066,53.5322],[6.5067,53.5289],[6.4974,53.5298],[6.4961,53.532],[6.4894,53.5285],[6.4525,53.5354],[6.4453,53.5323],[6.4329,53.5331]]]]},"af":[{"p":"Middelstum","lat":53.344799,"lon":6.64458,"s":"1834-09-20","e":null,"z":420},{"p":"Ulrum","lat":53.359371,"lon":6.33105,"s":"1834-10-14","e":null,"z":200},{"p":"Groningen","lat":53.219384,"lon":6.566502,"s":"1834-11-27","e":null,"z":814},{"p":"Wildervank","lat":53.0569,"lon":6.8494,"s":"1835-04-09","e":null,"z":720},{"p":"Kanaal (Stads)","lat":52.984371,"lon":6.95947,"s":"1835-04-10","e":null,"z":null},{"p":"Grootegast","lat":53.208637,"lon":6.27126,"s":"1835-06-01","e":null,"z":500},{"p":"Ezinge","lat":53.309291,"lon":6.44681,"s":"1835-06-22","e":null,"z":275},{"p":"Onstwedde","lat":53.033298,"lon":7.04157,"s":"1835-07-16","e":null,"z":null},{"p":"Sappemeer","lat":53.164826,"lon":6.794061,"s":"1835-07-25","e":null,"z":131},{"p":"Delfzijl","lat":53.331188,"lon":6.90321,"s":"1835-09-01","e":null,"z":500},{"p":"Leek","lat":53.161786,"lon":6.387741,"s":"1835-09-05","e":null,"z":null},{"p":"Appingedam","lat":53.32259,"lon":6.85788,"s":"1835-09-13","e":null,"z":301},{"p":"Hellum","lat":53.23837,"lon":6.837799,"s":"1835-09-15","e":"1840-04-29","z":null},{"p":"Zandt ('t)","lat":53.369678,"lon":6.77203,"s":"1835-09-18","e":null,"z":null},{"p":"Westerwijtwerd","lat":53.333253,"lon":6.645663,"s":"1835-09-20","e":"1840-12-01","z":null},{"p":"Uithuizen","lat":53.40789,"lon":6.67743,"s":"1835-09-21","e":null,"z":380},{"p":"Uithuizermede","lat":53.414378,"lon":6.725562,"s":"1835-09-22","e":null,"z":517},{"p":"Warffum","lat":53.392181,"lon":6.55085,"s":"1835-09-23","e":null,"z":440},{"p":"Spijk","lat":53.388969,"lon":6.83624,"s":"1835-09-25","e":null,"z":180},{"p":"Thesinge","lat":53.268169,"lon":6.65145,"s":"1835-09-27","e":null,"z":null},{"p":"Wirdum","lat":53.320691,"lon":6.783967,"s":"1835-10-04","e":"1845-09-11","z":null},{"p":"Garrelsweer","lat":53.310829,"lon":6.76522,"s":"1835-10-25","e":null,"z":425},{"p":"Leens","lat":53.360451,"lon":6.37646,"s":"1835-12-15","e":null,"z":600},{"p":"Nuis","lat":53.152052,"lon":6.307387,"s":"1836-03-01","e":"1848-01-01","z":null},{"p":"Pekel-A","lat":53.104172,"lon":7.00972,"s":"1836-04-10","e":null,"z":526},{"p":"Midwolda","lat":53.2,"lon":7.0,"s":"1836-04-16","e":null,"z":null},{"p":"Meeden","lat":53.137691,"lon":6.93761,"s":"1836-04-18","e":null,"z":21},{"p":"Schildwolde","lat":53.23378,"lon":6.81645,"s":"1836-04-19","e":null,"z":350},{"p":"Stedum","lat":53.316667,"lon":6.7,"s":"1836-04-24","e":null,"z":null},{"p":"Baflo","lat":53.36356,"lon":6.51417,"s":"1836-05-14","e":null,"z":null},{"p":"Bedum","lat":53.300671,"lon":6.59762,"s":"1836-05-15","e":null,"z":200},{"p":"Wittewierum","lat":53.286671,"lon":6.74722,"s":"1836-05-23","e":null,"z":126},{"p":"Boer (Ten)","lat":53.276348,"lon":6.69559,"s":"1836-09-01","e":null,"z":null},{"p":"Godlinze","lat":53.37304,"lon":6.8139,"s":"1836-09-01","e":"1846-09-01","z":null},{"p":"Woltersum","lat":53.271531,"lon":6.733136,"s":"1836-12-23","e":"1843-07-01","z":null},{"p":"Zandeweer","lat":53.387766,"lon":6.681416,"s":"1837-10-27","e":"1843-12-13","z":null},{"p":"Krewerd","lat":53.354031,"lon":6.84859,"s":"1839-01-01","e":null,"z":55},{"p":"Enumatil","lat":53.214579,"lon":6.409874,"s":"1839-04-25","e":null,"z":null},{"p":"Scheemda","lat":53.175919,"lon":6.9709,"s":"1839-07-01","e":null,"z":null},{"p":"Westerlee","lat":53.145965,"lon":6.988994,"s":"1839-12-01","e":"1851-06-01","z":null},{"p":"Houwerzijl","lat":53.335803,"lon":6.341288,"s":"1840-01-01","e":null,"z":428},{"p":"Zoutkamp","lat":53.338023,"lon":6.303114,"s":"1840-01-01","e":null,"z":120},{"p":"Bovenburen","lat":53.153423,"lon":7.034645,"s":"1840-01-01","e":null,"z":null},{"p":"Mensingeweer","lat":53.35184,"lon":6.464625,"s":"1840-01-01","e":"1842-12-01","z":null},{"p":"Onderdendam","lat":53.336231,"lon":6.5901,"s":"1842-01-02","e":null,"z":null},{"p":"Uitwierda","lat":53.34269,"lon":6.89742,"s":"1842-11-01","e":null,"z":130},{"p":"Winsum","lat":53.334412,"lon":6.51751,"s":"1843-06-01","e":null,"z":null},{"p":"Zevenhuizen","lat":53.124722,"lon":6.345556,"s":"1843-09-01","e":null,"z":390},{"p":"Bierum","lat":53.383381,"lon":6.86229,"s":"1844-07-11","e":null,"z":85},{"p":"Stroobos","lat":53.233333,"lon":6.216667,"s":"1845-07-07","e":null,"z":80},{"p":"Veendam","lat":53.106278,"lon":6.8751,"s":"1845-12-01","e":null,"z":null},{"p":"Niezijl","lat":53.266252,"lon":6.340215,"s":"1850-11-21","e":null,"z":370},{"p":"Aduard","lat":53.251599,"lon":6.459624,"s":"1850-12-22","e":null,"z":41}],"hv":[{"p":"Ter Apel","lat":52.87389,"lon":7.05645,"c":"Winschoten"},{"p":"Bellingwolde","lat":53.115829,"lon":7.16528,"c":"Winschoten"},{"p":"Blijham","lat":53.107159,"lon":7.07344,"c":"Winschoten"},{"p":"Bourtange","lat":53.009979,"lon":7.186,"c":"Winschoten"},{"p":"Onstwedde","lat":53.033298,"lon":7.04157,"c":"Winschoten"},{"p":"Oude Schans","lat":53.13755,"lon":7.142874,"c":"Winschoten"},{"p":"Sellingen","lat":52.94632,"lon":7.14478,"c":"Winschoten"},{"p":"Stadskanaal","lat":52.984371,"lon":6.95947,"c":"Winschoten"},{"p":"Vlagtwedde","lat":53.026051,"lon":7.10626,"c":"Winschoten"},{"p":"Vriescheloo","lat":53.069839,"lon":7.11341,"c":"Winschoten"},{"p":"Wedde","lat":53.068722,"lon":7.07553,"c":"Winschoten"},{"p":"Beerta","lat":53.17458,"lon":7.09717,"c":"Winschoten"},{"p":"Finsterwolde","lat":53.197731,"lon":7.08692,"c":"Winschoten"},{"p":"Midwolda","lat":53.194292,"lon":7.007777,"c":null},{"p":"Nieuwe Schans","lat":53.178051,"lon":7.22116,"c":"Winschoten"},{"p":"Nieuwolde","lat":53.245071,"lon":6.97703,"c":"Winschoten"},{"p":"Oostwold","lat":53.202728,"lon":7.04503,"c":"Winschoten"},{"p":"Scheemda","lat":53.175919,"lon":6.9709,"c":"Winschoten"},{"p":"Termunten","lat":53.296589,"lon":7.04232,"c":"Winschoten"},{"p":"Wagenborgen","lat":53.25713,"lon":6.93525,"c":"Winschoten"},{"p":"Woldendorp","lat":53.273891,"lon":7.02837,"c":"Winschoten"},{"p":"Eexta","lat":53.16386,"lon":6.98344,"c":"Winschoten"},{"p":"Meeden","lat":53.137691,"lon":6.93761,"c":"Winschoten"},{"p":"Noordbroek","lat":53.19289,"lon":6.87411,"c":"Winschoten"},{"p":"Nieuwe Pekela","lat":53.071869,"lon":6.95866,"c":"Winschoten"},{"p":"Oude Pekela","lat":53.104172,"lon":7.00972,"c":"Winschoten"},{"p":"Scheemda","lat":53.175919,"lon":6.9709,"c":"Winschoten"},{"p":"Veendam","lat":53.106411,"lon":6.88045,"c":"Winschoten"},{"p":"Westerlee","lat":53.145,"lon":6.986944,"c":"Winschoten"},{"p":"Wildervank","lat":53.0569,"lon":6.8494,"c":"Winschoten"},{"p":"Winschoten","lat":53.14658,"lon":7.04514,"c":"Winschoten"},{"p":"Zuidbroek","lat":53.170406,"lon":6.862173,"c":"Winschoten"},{"p":"Groningen","lat":53.219384,"lon":6.566502,"c":"Groningen"},{"p":"Engelbert","lat":53.208142,"lon":6.648657,"c":"Groningen"},{"p":"Haren","lat":53.171827,"lon":6.605243,"c":"Groningen"},{"p":"Hoogezand","lat":53.153823,"lon":6.747568,"c":"Groningen"},{"p":"Kropswolde","lat":53.142495,"lon":6.723132,"c":"Groningen"},{"p":"Middelbert","lat":53.222968,"lon":6.635898,"c":"Groningen"},{"p":"Noordlaren","lat":53.120998,"lon":6.665516,"c":"Groningen"},{"p":"Noorddijk","lat":53.244229,"lon":6.627299,"c":"Groningen"},{"p":"Sappemeer","lat":53.164826,"lon":6.794061,"c":"Groningen"},{"p":"Westerbroek","lat":53.184116,"lon":6.686708,"c":"Groningen"},{"p":"Windeweer en Lula","lat":53.115922,"lon":6.776951,"c":"Groningen"},{"p":"Aduard","lat":53.251599,"lon":6.459624,"c":"Groningen"},{"p":"Den Ham en Fransum","lat":53.273056,"lon":6.428056,"c":"Groningen"},{"p":"Ezinge","lat":53.309291,"lon":6.44681,"c":"Groningen"},{"p":"Feerwerd","lat":53.306512,"lon":6.466034,"c":"Groningen"},{"p":"Garnwerd en Oostum","lat":53.304128,"lon":6.492744,"c":"Groningen"},{"p":"Grijpskerk","lat":53.264167,"lon":6.306111,"c":"Groningen"},{"p":"Leegkerk-Hoogkerk","lat":53.229591,"lon":6.502922,"c":"Groningen"},{"p":"Noord born","lat":53.26086,"lon":6.395335,"c":"Groningen"},{"p":"Niehove","lat":53.290381,"lon":6.364968,"c":"Groningen"},{"p":"Niezijl","lat":53.266252,"lon":6.340215,"c":"Groningen"},{"p":"Oldehove","lat":53.303769,"lon":6.396263,"c":"Groningen"},{"p":"Saaksum","lat":53.312845,"lon":6.420662,"c":"Groningen"},{"p":"Visvliet","lat":53.266323,"lon":6.250704,"c":"Groningen"},{"p":"Wierum en Dorkwerd","lat":53.25054,"lon":6.51208,"c":"Groningen"},{"p":"Zuidhorn","lat":53.243148,"lon":6.408104,"c":"Groningen"},{"p":"Grootegast-Doczum","lat":53.208637,"lon":6.27126,"c":"Groningen"},{"p":"Lettelbert","lat":53.189167,"lon":6.406389,"c":"Groningen"},{"p":"Lutjegast","lat":53.234684,"lon":6.25746,"c":"Groningen"},{"p":"Marum-Noordwijk","lat":53.144001,"lon":6.264083,"c":"Groningen"},{"p":"Midwolde-de Leek","lat":53.161786,"lon":6.387741,"c":"Groningen"},{"p":"Niebert-Nuis","lat":53.15139,"lon":6.302394,"c":"Groningen"},{"p":"Niekerk-Oldekerk-Faan","lat":53.219262,"lon":6.339386,"c":"Groningen"},{"p":"Oostwold met Hooge en Lage Meeden","lat":53.201914,"lon":6.439936,"c":"Groningen"},{"p":"Opende","lat":53.173244,"lon":6.20949,"c":"Groningen"},{"p":"Sebaldeburen","lat":53.220971,"lon":6.305488,"c":"Groningen"},{"p":"t Oldebert (Tolbert)","lat":53.174452,"lon":6.35833,"c":"Groningen"},{"p":"Zevenhuizen","lat":53.124722,"lon":6.345556,"c":"Groningen"},{"p":"Appingedam","lat":53.32259,"lon":6.85788,"c":"Appingedam"},{"p":"Farmsum","lat":53.321159,"lon":6.93417,"c":"Appingedam"},{"p":"Heveskes","lat":53.3069,"lon":6.96444,"c":"Appingedam"},{"p":"Meedhuizen","lat":53.284988,"lon":6.90981,"c":"Appingedam"},{"p":"Opwierde","lat":53.313629,"lon":6.87355,"c":"Appingedam"},{"p":"Oterdum","lat":53.309744,"lon":6.995671,"c":"Appingedam"},{"p":"Tjamsweer","lat":53.323689,"lon":6.83361,"c":"Appingedam"},{"p":"Weiwerd","lat":53.310589,"lon":6.94869,"c":"Appingedam"},{"p":"Bierum","lat":53.383381,"lon":6.86229,"c":"Appingedam"},{"p":"Delfzijl","lat":53.331188,"lon":6.90321,"c":"Appingedam"},{"p":"Godlinze","lat":53.374001,"lon":6.81179,"c":"Appingedam"},{"p":"Holwierde","lat":53.357941,"lon":6.87088,"c":"Appingedam"},{"p":"Jukwerd","lat":53.335201,"lon":6.84674,"c":"Appingedam"},{"p":"Krewerd","lat":53.354031,"lon":6.84859,"c":"Appingedam"},{"p":"Losdorp","lat":53.372742,"lon":6.83718,"c":"Appingedam"},{"p":"Marsum","lat":53.339621,"lon":6.874947,"c":"Appingedam"},{"p":"Solwerd","lat":53.324169,"lon":6.86806,"c":"Appingedam"},{"p":"Spijk","lat":53.388969,"lon":6.83624,"c":"Appingedam"},{"p":"Uitwierde","lat":53.34269,"lon":6.89742,"c":"Appingedam"},{"p":"Enum","lat":53.337818,"lon":6.78078,"c":"Appingedam"},{"p":"Garrelsweer","lat":53.310829,"lon":6.76522,"c":"Appingedam"},{"p":"Garsthuizen","lat":53.368328,"lon":6.71389,"c":"Appingedam"},{"p":"Leermens","lat":53.34631,"lon":6.79785,"c":"Appingedam"},{"p":"Lellens","lat":53.30162,"lon":6.71005,"c":"Appingedam"},{"p":"Loppersum","lat":53.33276,"lon":6.74398,"c":"Appingedam"},{"p":"Ten Boer","lat":53.276348,"lon":6.69559,"c":"Appingedam"},{"p":"Garmerwolde","lat":53.244011,"lon":6.65467,"c":"Appingedam"},{"p":"Harkstede","lat":53.2127,"lon":6.69463,"c":"Appingedam"},{"p":"Scharmer","lat":53.207371,"lon":6.70689,"c":"Appingedam"},{"p":"Hellum","lat":53.23867,"lon":6.83595,"c":"Appingedam"},{"p":"Kolham","lat":53.182091,"lon":6.73945,"c":"Appingedam"},{"p":"Oosterwijtwerd","lat":53.338089,"lon":6.8132,"c":"Appingedam"},{"p":"Stedum","lat":53.32114,"lon":6.69657,"c":"Appingedam"},{"p":"Westeremden","lat":53.345852,"lon":6.71048,"c":"Appingedam"},{"p":"Wirdum","lat":53.323689,"lon":6.78567,"c":"Appingedam"},{"p":"t Zandt","lat":53.369678,"lon":6.77203,"c":"Appingedam"},{"p":"Zeerijp","lat":53.347752,"lon":6.76102,"c":"Appingedam"},{"p":"Schildwolde","lat":53.23378,"lon":6.81645,"c":"Appingedam"},{"p":"Siddeburen","lat":53.247299,"lon":6.86997,"c":"Appingedam"},{"p":"Slochteren","lat":53.21973,"lon":6.80568,"c":"Appingedam"},{"p":"Thesinge","lat":53.268169,"lon":6.65145,"c":"Appingedam"},{"p":"Wittewierum","lat":53.286671,"lon":6.74722,"c":"Appingedam"},{"p":"Woltersum","lat":53.272362,"lon":6.7332,"c":"Appingedam"},{"p":"Hornhuizen, Groningen","lat":53.388119,"lon":6.36238,"c":"Middelstum"},{"p":"Leens, Groningen","lat":53.360451,"lon":6.37646,"c":"Middelstum"},{"p":"Niekerk, Groningen","lat":53.342419,"lon":6.32981,"c":"Middelstum"},{"p":"Pieterburen, Groningen","lat":53.39975,"lon":6.45563,"c":"Middelstum"},{"p":"Saaxumhuizen, Groningen","lat":53.380779,"lon":6.48337,"c":"Middelstum"},{"p":"Ulrum, Groningen","lat":53.359371,"lon":6.33105,"c":"Middelstum"},{"p":"Vierhuizen, Groningen","lat":53.360519,"lon":6.29102,"c":"Middelstum"},{"p":"Warfhuizen, Groningen","lat":53.34034,"lon":6.4255,"c":"Middelstum"},{"p":"Wehe, Groningen","lat":53.360658,"lon":6.417455,"c":"Middelstum"},{"p":"Westernieland, Groningen","lat":53.399899,"lon":6.48776,"c":"Middelstum"},{"p":"Zuurdijk, Groningen","lat":53.33773,"lon":6.37637,"c":"Middelstum"},{"p":"Bedum, Groningen","lat":53.300671,"lon":6.59762,"c":"Middelstum"},{"p":"Huizinge, Groningen","lat":53.344978,"lon":6.6762,"c":"Middelstum"},{"p":"Kantens, Groningen","lat":53.366268,"lon":6.63558,"c":"Middelstum"},{"p":"Menkeweer, Groningen","lat":53.233299,"lon":6.5833,"c":"Middelstum"},{"p":"Middelstum, Groningen","lat":53.344799,"lon":6.64458,"c":"Middelstum"},{"p":"Noordwolde, Groningen","lat":53.272411,"lon":6.58868,"c":"Middelstum"},{"p":"Onderdendam, Groningen","lat":53.336231,"lon":6.5901,"c":"Middelstum"},{"p":"Stitswerd, Groningen","lat":53.361488,"lon":6.59928,"c":"Middelstum"},{"p":"Westerdijkshorn, Groningen","lat":53.310501,"lon":6.57557,"c":"Middelstum"},{"p":"Westerwijtwert, Groningen","lat":53.333611,"lon":6.644444,"c":"Middelstum"},{"p":"Zuidwolde, Groningen","lat":53.26054,"lon":6.59259,"c":"Middelstum"},{"p":"Breede, Groningen","lat":53.385682,"lon":6.538489,"c":"Middelstum"},{"p":"Eppenhuizen, Groningen","lat":53.380871,"lon":6.69873,"c":"Middelstum"},{"p":"Oldenzijl, Groningen","lat":53.393379,"lon":6.71467,"c":"Middelstum"},{"p":"Oosternieland, Groningen","lat":53.4002,"lon":6.75495,"c":"Middelstum"},{"p":"Rottum, Groningen","lat":53.382942,"lon":6.620084,"c":"Middelstum"},{"p":"Uithuizen, Groningen","lat":53.40789,"lon":6.67743,"c":"Middelstum"},{"p":"Uithuister Meden, Groningen","lat":53.414378,"lon":6.725562,"c":"Middelstum"},{"p":"Uskwert, Groningen","lat":53.404171,"lon":6.610838,"c":"Middelstum"},{"p":"Warffum, Groningen","lat":53.392181,"lon":6.55085,"c":"Middelstum"},{"p":"Zandeweer, Groningen","lat":53.388329,"lon":6.68181,"c":"Middelstum"},{"p":"Adorp, Groningen","lat":53.275059,"lon":6.53538,"c":"Middelstum"},{"p":"Den Andel, Groningen","lat":53.394218,"lon":6.51631,"c":"Middelstum"},{"p":"Baflo, Groningen","lat":53.36356,"lon":6.51417,"c":"Middelstum"},{"p":"Eenrum, Groningen","lat":53.364639,"lon":6.45904,"c":"Middelstum"},{"p":"Mensingeweer, Groningen","lat":53.35107,"lon":6.46469,"c":"Middelstum"},{"p":"Obergum, Groningen","lat":53.333302,"lon":6.5167,"c":"Middelstum"},{"p":"Sauwert, Groningen","lat":53.294304,"lon":6.532839,"c":"Middelstum"},{"p":"Tinallinge, Groningen","lat":53.35759,"lon":6.53588,"c":"Middelstum"},{"p":"Wetsinge, Groningen","lat":53.30405,"lon":6.53172,"c":"Middelstum"},{"p":"Winsum, Groningen","lat":53.334412,"lon":6.51751,"c":"Middelstum"}],"census":{"10426":{"p":"Groningen","i":33694,"m":169,"v":186,"t":355},"10996":{"p":"Adorp","i":1119,"m":13,"v":22,"t":35},"10999":{"p":"Aduard","i":1848,"m":42,"v":45,"t":87},"10886":{"p":"Appingedam (Stad)","i":3315,"m":137,"v":143,"t":280},"10539":{"p":"Baflo","i":2170,"m":132,"v":122,"t":254},"10425":{"p":"Bedum","i":3377,"m":135,"v":132,"t":267},"11043":{"p":"Beerta","i":3329,"m":0,"v":0,"t":0},"10340":{"p":"Bellingewolde","i":3222,"m":3,"v":1,"t":4},"11294":{"p":"Bierum","i":3026,"m":170,"v":159,"t":329},"10891":{"p":"Boer (ten)","i":3274,"m":360,"v":330,"t":690},"10976":{"p":"Delfzijl (Stad)","i":4321,"m":250,"v":244,"t":494},"10904":{"p":"Eenrum","i":2424,"m":21,"v":14,"t":35},"10136":{"p":"Ezinge","i":1726,"m":73,"v":70,"t":143},"10212":{"p":"Finsterwolde","i":1760,"m":0,"v":0,"t":0},"11080":{"p":"Grootegast","i":3176,"m":135,"v":141,"t":276},"10244":{"p":"Grijpskerk","i":2772,"m":66,"v":65,"t":131},"11058":{"p":"Haren","i":2689,"m":38,"v":42,"t":80},"10410":{"p":"Hoogezand","i":5936,"m":17,"v":15,"t":32},"10953":{"p":"Hoogkerk","i":1046,"m":33,"v":41,"t":74},"10372":{"p":"Kantens","i":1980,"m":83,"v":87,"t":170},"10628":{"p":"Kloosterburen","i":1512,"m":52,"v":42,"t":94},"10604":{"p":"Leek","i":4513,"m":319,"v":347,"t":666},"11050":{"p":"Leens","i":3108,"m":225,"v":244,"t":469},"10934":{"p":"Loppersum","i":2240,"m":161,"v":175,"t":336},"11431":{"p":"Marum","i":3115,"m":74,"v":82,"t":156},"10304":{"p":"Meeden","i":1186,"m":27,"v":24,"t":51},"11199":{"p":"Middelstum","i":1783,"m":182,"v":181,"t":363},"10356":{"p":"Midwolda","i":2922,"m":35,"v":34,"t":69},"10550":{"p":"Muntendam","i":2091,"m":11,"v":7,"t":18},"10950":{"p":"Nieuwe Pekel A","i":4228,"m":160,"v":183,"t":343},"10008":{"p":"Nieuweschans","i":967,"m":0,"v":0,"t":0},"10126":{"p":"Nieuwolda","i":1644,"m":6,"v":12,"t":18},"10814":{"p":"Noordbroek","i":2018,"m":5,"v":4,"t":9},"10979":{"p":"Noorddijk","i":1049,"m":3,"v":6,"t":9},"10298":{"p":"Oldehove","i":2280,"m":76,"v":83,"t":159},"11332":{"p":"Oldekerk","i":1016,"m":59,"v":50,"t":109},"10610":{"p":"Onstwedde","i":3275,"m":253,"v":296,"t":549},"10848":{"p":"Oude Pekel A","i":3801,"m":38,"v":42,"t":80},"10080":{"p":"Sappemeer","i":3170,"m":44,"v":34,"t":78},"10711":{"p":"Scheemda","i":3733,"m":23,"v":25,"t":48},"10747":{"p":"Slochteren","i":6783,"m":194,"v":199,"t":393},"10771":{"p":"Stedum","i":1665,"m":73,"v":90,"t":163},"11023":{"p":"Termunten","i":2360,"m":17,"v":22,"t":39},"10246":{"p":"Uithuistermeeden","i":3307,"m":233,"v":225,"t":458},"11137":{"p":"Uithuizen","i":2728,"m":84,"v":103,"t":187},"10180":{"p":"Ulrum","i":2640,"m":347,"v":400,"t":747},"11035":{"p":"Usquert","i":1532,"m":18,"v":23,"t":41},"11292":{"p":"Veendam","i":7529,"m":70,"v":74,"t":144},"11249":{"p":"Vlagtwedde","i":2253,"m":51,"v":47,"t":98},"10498":{"p":"Warffum","i":1896,"m":99,"v":124,"t":223},"10247":{"p":"Wedde","i":1755,"m":2,"v":1,"t":3},"10825":{"p":"Wildervank","i":5542,"m":288,"v":301,"t":589},"10453":{"p":"Winschoten (Stad)","i":4123,"m":15,"v":17,"t":32},"11135":{"p":"Winsum","i":1869,"m":20,"v":36,"t":56},"10956":{"p":"Zand ('t)","i":2688,"m":147,"v":126,"t":273},"11282":{"p":"Zuidbroek","i":1669,"m":8,"v":16,"t":24},"10021":{"p":"Zuidhorn","i":2248,"m":59,"v":48,"t":107}},"hist":{"titel":"Groningen, steendruk J.H. van de Weijer, 1868","bron":"Universiteitsbibliotheek Groningen, Bibliotheek Backer, uklu 01-13-03","link":"https://dbc.rug.nl/digital/collection/Kaarten/id/1846","manifest":"https://dbc.rug.nl/iiif/2/Kaarten:1846/manifest.json","iiif":"https://cdm21053.contentdm.oclc.org/iiif/2/Kaarten:1844","w":2507,"h":3000,"mercator_naar_pixel":[[110217.045351,777.79847],[68.149917,-107367.957981],[-11719.740546,119490.793781]],"methode":"affien, gepast op de gele provinciegrens tegen NLGIS-grens 1849","afwijking_grens_m":{"p50":201,"p75":775,"p90":2871},"meter_per_pixel":35.1}};
+// Kaartlogica (ingevoegd op __KAART_JS__; DATA is dan al gedefinieerd).
+// Twee weergaven: "tijd" (tijdlijn, maand voor maand) en "cen" (volkstelling 1849, vast op dat jaar).
+// Elementen met class only-tijd / only-cen worden per weergave getoond (zie kaart.css).
+const MONTHS=["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
+const META=DATA.meta;
+const START=META.jaar_van, END=META.jaar_tot, N=(END-START+1)*12;
+const DATA_END=new Date(META.bronperiode_eind); // eerste dag ná de bronperiode
+const LAST=DATA_END.getFullYear()-1; // laatste jaar met gegevens
+document.getElementById("title").textContent=`De Afscheiding in Groningen, ${START}–${END}`;
+document.getElementById("hvn").textContent=DATA.hv.length;
+document.getElementById("slider").max=N-1;
+const toDate = m => new Date(START+Math.floor(m/12), m%12, 15);
+const fmt = s => { const d=new Date(s); return d.getDate()+" "+MONTHS[d.getMonth()].slice(0,3)+" "+d.getFullYear(); };
+const af = DATA.af.map(d=>({...d, sd:new Date(d.s), ed:d.e?new Date(d.e):null}));
+
+const svg=d3.select("#map"), W=900, H=840; // onderste 80 px: ruimte voor de tijdlijnbediening
+const prov = {type:"FeatureCollection",features:DATA.years[1849].map(k=>({type:"Feature",geometry:DATA.geoms[k].g}))};
+const proj=d3.geoMercator().fitExtent([[30,40],[W-20,740]],prov);
+const path=d3.geoPath(proj);
+
+const gCtx=svg.append("g"), gProv=svg.append("g"), gMuni=svg.append("g"), gVor=svg.append("g"), gLab=svg.append("g"), gHv=svg.append("g"), gLink=svg.append("g"), gGone=svg.append("g"), gAf=svg.append("g"), gRing=svg.append("g");
+gCtx.append("path").attr("class","ctx").attr("d",path(DATA.ctx));
+gProv.append("path").attr("class","prov").attr("d",path(DATA.prov));
+svg.append("defs").append("clipPath").attr("id","provclip").selectAll("path").data(prov.features).join("path").attr("d",path);
+gVor.attr("clip-path","url(#provclip)");
+// Historische kaart (IIIF, georeferentie in DATA.hist) als ondergrond boven land/gemeenten.
+// Alleen actief als de template een schakelaar #tHist heeft; de scan wordt pas bij aanzetten geladen.
+const HIST=DATA.hist, tHist=document.getElementById("tHist");
+if(HIST&&tHist){
+  const A=HIST.mercator_naar_pixel, det=A[0][0]*A[1][1]-A[1][0]*A[0][1], deg=180/Math.PI;
+  const toLL=(u,v)=>{const du=u-A[2][0],dv=v-A[2][1]; // scanpixel -> [lon,lat]
+    const X=(A[1][1]*du-A[1][0]*dv)/det, Y=(-A[0][1]*du+A[0][0]*dv)/det;
+    return [X*deg,(2*Math.atan(Math.exp(Y))-Math.PI/2)*deg];};
+  // Mercator -> Mercator is affien, dus drie punten bepalen de SVG-matrix exact.
+  const p0=proj(toLL(0,0)), p1=proj(toLL(1000,0)), p2=proj(toLL(0,1000));
+  const mtx=[(p1[0]-p0[0])/1000,(p1[1]-p0[1])/1000,(p2[0]-p0[0])/1000,(p2[1]-p0[1])/1000,p0[0],p0[1]];
+  const gHist=svg.insert("g",()=>gVor.node()).attr("class","hist").attr("clip-path","url(#provclip)").style("display","none");
+  const img=gHist.append("image").attr("width",HIST.w).attr("height",HIST.h).attr("preserveAspectRatio","none")
+    .attr("transform",`matrix(${mtx.join(",")})`);
+  // ?kaart=0: uit; ?kaart=heel: hele scan; ?kaart=provincie: uitgesneden op de provincie.
+  const op=document.getElementById("histOp"), full=document.getElementById("tHistFull");
+  const rows=["histrow","histfullrow"].map(id=>document.getElementById(id)).filter(Boolean);
+  const qk=new URLSearchParams(location.search).get("kaart");
+  if(qk!=null){tHist.checked=qk!=="0"; if(full&&qk==="heel")full.checked=true; if(full&&qk==="provincie")full.checked=false;}
+  const upd=()=>{const on=tHist.checked, heel=!!full?.checked;
+    if(on&&!img.attr("href"))img.attr("href",`${HIST.iiif}/full/1600,/0/default.jpg`);
+    gHist.style("display",on?null:"none").attr("clip-path",heel?null:"url(#provclip)");
+    rows.forEach(r=>r.hidden=!on);
+    if(op)gHist.style("opacity",op.value);};
+  [tHist,full].forEach(el=>el?.addEventListener("change",upd)); op?.addEventListener("input",upd);
+  upd();
+}
+// afstand in meters (haversine)
+const hav=(a,b)=>{const R=6371008,r=Math.PI/180,dl=(b.lat-a.lat)*r,dn=(b.lon-a.lon)*r;
+  const h=Math.sin(dl/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h));};
+const nearest=(p,set)=>{let best=null,bd=Infinity;for(const q of set){if(q===p)continue;const d=hav(p,q);if(d<bd){bd=d;best=q;}}return [best,bd];};
+const wclass=m=>m<=2500?"var(--w1)":m<=5000?"var(--w2)":m<=7500?"var(--w3)":"var(--w4)";
+const walkMin=m=>Math.round(m/5000*60);
+// naaste actieve gemeente op de dag vóór opheffing
+const activeAt=t=>af.filter(d=>d.sd<=t&&(!d.ed||d.ed>t));
+af.filter(d=>d.ed).forEach(d=>{const t=new Date(d.ed-864e5);const [q,m]=nearest(d,activeAt(t));d.nb=q;d.nbd=m;});
+
+// census
+const cen=DATA.census; const pct=c=>cen[c]?100*cen[c].t/cen[c].i:null;
+const maxPct=d3.max(Object.keys(cen),c=>pct(c));
+const cscale=d3.scaleSequential(d3.interpolateRgb("#f3e6d3","#9a3412")).domain([0,Math.ceil(maxPct)]);
+d3.select("#ramp").selectAll("span").data(d3.range(8)).join("span").style("background",i=>cscale(i/7*Math.ceil(maxPct)));
+d3.select("#rampmax").text(Math.ceil(maxPct)+"%");
+// Volkstellingsweergave: vast op 1849; de afgescheiden gemeenten in de stand van december 1849.
+const CEN_YEAR=1849, CEN_M=(CEN_YEAR-START)*12+11, HAS_CEN=CEN_M>=0&&CEN_M<N&&Object.keys(cen).length>0;
+let mode="tijd", tijdM=null;
+const nl=(v,d=1)=>v.toFixed(d).replace(".",",");
+{ const cs=Object.values(cen), I=d3.sum(cs,c=>c.i), T=d3.sum(cs,c=>c.t), M=d3.sum(cs,c=>c.m), V=d3.sum(cs,c=>c.v);
+  const top=Object.keys(cen).map(c=>({c,p:pct(c),n:cen[c].p,t:cen[c].t,i:cen[c].i})).sort((a,b)=>b.p-a.p);
+  const put=(id,v)=>{const e=document.getElementById(id); if(e)e.textContent=v;};
+  put("cInw",I.toLocaleString("nl")); put("cAf",T.toLocaleString("nl")); put("cAfmv",`${M.toLocaleString("nl")} mannen, ${V.toLocaleString("nl")} vrouwen`);
+  put("cPct",nl(100*T/I)+"%"); put("cGem",`${cs.length} gemeenten; in ${cs.filter(c=>c.t>0).length} wonen afgescheidenen`);
+  if(top.length){put("cMax",nl(top[0].p)+"%"); put("cMaxn",`${top[0].n}: ${top[0].t.toLocaleString("nl")} van ${top[0].i.toLocaleString("nl")} inwoners`);}
+  d3.select("#cenlist").html(top.filter(d=>d.t>0).map((d,i)=>`<div><span class="d">${i+1}.</span><span class="cn">${d.n}</span><span class="cbar"><span style="width:${100*d.p/maxPct}%;background:${cscale(d.p)}"></span></span><span class="d">${nl(d.p)}%</span></div>`).join(""));
+}
+
+// hervormd
+gHv.selectAll("circle").data(DATA.hv).join("circle").attr("class","hv").attr("r",2.4)
+  .attr("cx",d=>proj([d.lon,d.lat])[0]).attr("cy",d=>proj([d.lon,d.lat])[1])
+  .on("mousemove",(e,d)=>tip(e,`<b>${d.p}</b><br>Hervormde kerk${d.c?"<br>Classis "+d.c:""}`+(d.nd!=null&&isFinite(d.nd)?`<br>Naaste afgescheiden gemeente: ${d.nq.p}, ${(d.nd/1000).toFixed(1).replace(".",",")} km (± ${walkMin(d.nd)} min lopen)`:""))).on("mouseleave",hide);
+
+const rz=d3.scaleSqrt().domain([0,820]).range([3,17]);
+const R=d=>d.z?rz(d.z):4.5;
+
+// maatstreepjes met jaartallen onder de schuifbalk (elke vijf jaar)
+d3.select("#tlticks").html(d3.range(Math.ceil(START/5)*5,END+1,5).map(yr=>`<span style="--p:${(yr-START)*12/(N-1)}">${yr}</span>`).join(""));
+// ledenbalk: som van het ledental (1851) van de gemeenten die op dat moment bestaan
+const zsum=t=>d3.sum(af,d=>d.sd<=t&&(!d.ed||d.ed>t)?(d.z||0):0);
+const ZMAX=d3.max(d3.range(N),m=>zsum(toDate(m)))||1, ZTOP=Math.ceil(ZMAX/1000)*1000;
+const zstep=ZTOP<=4000?1000:2000;
+d3.select("#tht").html(d3.range(0,ZTOP+1,zstep).map(v=>`<span style="bottom:${100*v/ZTOP}%">${v.toLocaleString("nl")}</span>`).join(""));
+document.getElementById("thermo").setAttribute("aria-valuemax",ZTOP);
+d3.select("#thn").text(`* ledenaantal afgescheiden kerken (indicatie, in ${META.zielen_jaar} bekend voor ${af.filter(d=>d.z).length} van ${af.length} gemeenten)`);
+
+let cur=-1, lastYear=null;
+function drawMunis(yr){
+  const keys=DATA.years[yr]; const changed=new Set(DATA.changes[yr]||[]);
+  const show=mode==="cen";
+  gMuni.style("display",show?null:"none"); // gemeentegrenzen alleen in de volkstellingsweergave
+  gMuni.selectAll("path").data(keys,k=>k).join("path").attr("class",k=>"muni"+(changed.has(DATA.geoms[k].n)?" changed":""))
+    .attr("d",k=>path(DATA.geoms[k].g))
+    .style("fill",k=>{const p=pct(DATA.geoms[k].c);return show&&p!=null?cscale(p):null;})
+    .on("mousemove",(e,k)=>{const g=DATA.geoms[k],c=cen[g.c];
+      tip(e,`<b>${g.n}</b> <span style="color:var(--muted)">(gemeente, ${yr})</span>`+(c?`<br>1849: ${c.t.toLocaleString("nl")} afgescheidenen op ${c.i.toLocaleString("nl")} inw. (${pct(g.c).toFixed(1)}%)`:"")+(changed.has(g.n)?`<br><span style="color:var(--accent)">Grens gewijzigd in ${yr}</span>`:""));})
+    .on("mouseleave",hide);
+  gLab.selectAll("text").data(document.getElementById("tLab").checked?keys:[],k=>k).join("text").attr("class","mlabel").attr("text-anchor","middle")
+    .attr("x",k=>path.centroid(DATA.geoms[k].g)[0]).attr("y",k=>path.centroid(DATA.geoms[k].g)[1]).text(k=>DATA.geoms[k].n);
+}
+function set(m){
+  m=mode==="cen"?CEN_M:Math.max(0,Math.min(N-1,m)); cur=m; document.getElementById("slider").value=m;
+  const t=toDate(m), yr=t.getFullYear();
+  if(yr!==lastYear){drawMunis(yr);lastYear=yr;}
+  d3.select("#by").text(yr); d3.select("#bm").text(mode==="cen"?"volkstelling":MONTHS[t.getMonth()]+(t>=DATA_END?" · na bronperiode":""));
+  const act=af.filter(d=>d.sd<=t&&(!d.ed||d.ed>t));
+  const gone=document.getElementById("tGone").checked?af.filter(d=>d.ed&&d.ed<=t):[];
+  const yearAgo=new Date(t); yearAgo.setFullYear(yr-1);
+  const fresh=mode==="cen"?[]:act.filter(d=>d.sd>yearAgo);
+  gAf.selectAll("circle").data(act.sort((a,b)=>(b.z||0)-(a.z||0)),d=>d.p).join(
+      en=>en.append("circle").attr("class","af"),u=>u,ex=>ex.remove())
+    .attr("cx",d=>proj([d.lon,d.lat])[0]).attr("cy",d=>proj([d.lon,d.lat])[1])
+    .style("fill","var(--af)").attr("fill-opacity",t>=DATA_END?.55:.85).attr("r",R)
+    .on("mousemove",(e,d)=>tip(e,info(d))).on("mouseleave",hide);
+  gRing.selectAll("circle").data(fresh,d=>d.p).join("circle").attr("class","ring")
+    .attr("cx",d=>proj([d.lon,d.lat])[0]).attr("cy",d=>proj([d.lon,d.lat])[1]).attr("r",d=>R(d)+4)
+    .attr("opacity",d=>1-(t-d.sd)/(365*864e5));
+  gGone.selectAll("circle").data(gone,d=>d.p).join("circle").attr("class","af gone").attr("r",5)
+    .attr("cx",d=>proj([d.lon,d.lat])[0]).attr("cy",d=>proj([d.lon,d.lat])[1])
+    .on("mousemove",(e,d)=>tip(e,info(d))).on("mouseleave",hide);
+  const walk=document.getElementById("tWalk").checked; svg.classed("walking",walk);
+  let within=0; const ds=[];
+  DATA.hv.forEach(h=>{const [q,m]=act.length?nearest(h,act):[null,Infinity];h.nq=q;h.nd=m;if(m<=5000)within++;ds.push(m);});
+  d3.select("#reach").html(`${within}<small>/ ${DATA.hv.length}</small>`);
+  const rb=document.getElementById("reachbar"); if(rb)rb.style.width=(100*within/DATA.hv.length)+"%"; // optioneel per template
+  d3.select("#reachmed").text(act.length?(d3.median(ds)/1000).toFixed(1).replace(".",",")+" km":"–");
+  gHv.selectAll("circle").attr("r",walk?3.4:2.4).style("fill",walk?(h=>wclass(h.nd)):null).style("opacity",walk?.95:null);
+  const pts=act.map(d=>proj([d.lon,d.lat]));
+  gVor.selectAll("path").data(walk&&pts.length>1?[d3.Delaunay.from(pts).voronoi([0,0,W,H]).render()]:[]).join("path").attr("class","vor").attr("d",d=>d);
+  gLink.selectAll("line").data(gone.filter(d=>d.nb),d=>d.p).join("line").attr("class","link")
+    .attr("x1",d=>proj([d.lon,d.lat])[0]).attr("y1",d=>proj([d.lon,d.lat])[1])
+    .attr("x2",d=>proj([d.nb.lon,d.nb.lat])[0]).attr("y2",d=>proj([d.nb.lon,d.nb.lat])[1]);
+  d3.select("#count").text(act.length); d3.select("#gonecount").text(af.filter(d=>d.ed&&d.ed<=t).length);
+  const z=d3.sum(act,d=>d.z||0), zk=act.filter(d=>d.z).length;
+  d3.select("#thv").text(z.toLocaleString("nl")); document.getElementById("thf").style.height=(100*z/ZTOP)+"%";
+  document.getElementById("thermo").setAttribute("aria-valuenow",z);
+  d3.select("#zielnote").text(act.length?`Ledental ${META.zielen_jaar} bekend voor ${zk} van ${act.length}${zk?" (samen "+z.toLocaleString("nl")+")":""}`:"Nog geen afgescheiden gemeenten");
+  // events in selected year
+  const ev=[...af.filter(d=>d.sd.getFullYear()===yr).map(d=>({d:d.sd,t:"geïnstitueerd",p:d.p,c:"var(--af)"})),
+            ...af.filter(d=>d.ed&&d.ed.getFullYear()===yr).map(d=>({d:d.ed,t:"opgeheven",p:d.p,c:"var(--af-gone)"}))].sort((a,b)=>a.d-b.d);
+  d3.select("#evy").text(yr);
+  const ch=DATA.changes[yr];
+  d3.select("#events").html((ev.length?ev.map(e=>`<div style="${e.d>t?'opacity:.45':''}"><span><span class="ktag" style="background:${e.c}"></span>${e.p} <span class="d">${e.t}</span></span><span class="d">${fmt(e.d)}</span></div>`).join(""):
+     `<p class="kempty">${yr<1834?"Vóór de Afscheiding (oktober 1834).":yr>LAST?`Geen gegevens na ${LAST} in de dataset.`:"Geen instituering of opheffing in de dataset."}</p>`)
+     +(ch?`<p class="note" style="color:var(--accent)">Grenswijziging: ${ch.join(", ")}</p>`:""));
+}
+function info(d){return `<b>${d.p}</b><br>Afgescheiden gemeente<br>Geïnstitueerd: ${fmt(d.s)}<br>${d.e?"Opgeheven: "+fmt(d.e)+(d.nb?`<br>Naaste gemeente toen: ${d.nb.p} (${(d.nbd/1000).toFixed(1).replace(".",",")} km)`:""):`Bestaat nog eind ${LAST}`}<br>Leden ${META.zielen_jaar}: ${d.z?d.z:"onbekend"}`;}
+const tipEl=document.getElementById("tip");
+function tip(e,h){tipEl.innerHTML=h;tipEl.style.display="block";const r=tipEl.getBoundingClientRect();
+  let l=e.clientX+14,tp=e.clientY+14; if(l+r.width>innerWidth-8)l=e.clientX-r.width-14; if(tp+r.height>innerHeight-8)tp=e.clientY-r.height-14;
+  tipEl.style.left=l+"px";tipEl.style.top=tp+"px";}
+function hide(){tipEl.style.display="none";}
+
+document.getElementById("slider").addEventListener("input",e=>set(+e.target.value));
+document.getElementById("prev").onclick=()=>set(cur-1); document.getElementById("next").onclick=()=>set(cur+1);
+["tHv","tGone","tLab","tWalk"].forEach(id=>document.getElementById(id).addEventListener("change",()=>{
+  gHv.style("display",document.getElementById("tHv").checked?null:"none");
+  document.getElementById("walkleg").hidden=!document.getElementById("tWalk").checked;
+  lastYear=null; set(cur);}));
+// De template levert de knopinhoud: huidige inhoud = afspelen, data-pause = pauze.
+let timer=null; const PLAY=document.getElementById("play").innerHTML, PAUSE=document.getElementById("play").dataset.pause;
+function setMode(md){
+  if(md==="cen"&&!HAS_CEN)md="tijd";
+  if(timer)document.getElementById("play").click(); // afspelen stoppen
+  if(md==="cen"&&mode!=="cen")tijdM=cur;
+  mode=md; document.body.classList.toggle("mode-cen",md==="cen");
+  document.querySelectorAll("[data-mode]").forEach(a=>{const on=a.dataset.mode===md;a.classList.toggle("active",on);a.setAttribute("aria-selected",on);});
+  const u=new URL(location); if(md==="cen")u.searchParams.set("cen",""); else u.searchParams.delete("cen");
+  try{history.replaceState(null,"",u.toString().replace("cen=&","cen&").replace(/cen=$/,"cen"));}catch{}
+  lastYear=null; set(md==="cen"?CEN_M:(tijdM??cur));
+}
+document.querySelectorAll("[data-mode]").forEach(a=>{if(a.dataset.mode==="cen"&&!HAS_CEN)a.closest("li")?.remove();
+  a.addEventListener("click",e=>{e.preventDefault();setMode(a.dataset.mode);});});
+document.getElementById("play").onclick=function(){
+  if(timer){clearInterval(timer);timer=null;this.innerHTML=PLAY;return;}
+  if(cur>=N-1)set(0); this.innerHTML=PAUSE;
+  const step=()=>{if(cur>=N-1){clearInterval(timer);timer=null;document.getElementById("play").innerHTML=PLAY;return;}set(cur+1);};
+  timer=setInterval(step,+document.getElementById("speed").value);
+};
+document.getElementById("speed").onchange=()=>{if(timer){document.getElementById("play").click();document.getElementById("play").click();}};
+document.addEventListener("keydown",e=>{if(mode==="cen")return;if(e.target.tagName==="INPUT"&&e.target.type!=="range")return;if(e.key==="ArrowLeft"){set(cur-1);e.preventDefault();}if(e.key==="ArrowRight"){set(cur+1);e.preventDefault();}});
+const q=+new URLSearchParams(location.search).get("m");
+const QS=new URLSearchParams(location.search);
+if(QS.has("walk")){document.getElementById("tWalk").checked=true;document.getElementById("walkleg").hidden=false;}
+
+set(isNaN(q)||!q?(META.start[0]-START)*12+META.start[1]-1:q); // startmaand uit config.json
+if(QS.has("cen"))setMode("cen");
+
+</script>
+</body>
+</html>
